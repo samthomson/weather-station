@@ -1,0 +1,7 @@
+.pio
+.vscode
+.idea
+*.swp
+*.swo
+*~
+include/secrets.h
