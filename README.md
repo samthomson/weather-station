@@ -2,6 +2,8 @@
 
 ESP8266 weather station that posts sensor data to Nostr via WebSocket with BIP-340 Schnorr signatures.
 
+**Demo:** [weather.shakespeare.wtf](https://weather.shakespeare.wtf/) — see live weather data rendered from Nostr events
+
 ## Hardware
 
 - NodeMCU v2 (ESP8266)
