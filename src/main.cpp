@@ -171,7 +171,7 @@ void setup() {
   
   Serial.println("\n=== Weather Station (Schnorr) ===");
   
-  mySerial.begin(115200);
+  mySerial.begin(9600);  // PMS5003/PMS7003 default baud rate
   dht.begin();
   pinMode(D0, OUTPUT);
   pinMode(D8, OUTPUT);
