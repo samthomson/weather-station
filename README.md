@@ -26,7 +26,7 @@ ESP8266 weather station that posts sensor data to Nostr via WebSocket with BIP-3
 
 Edit `src/main.cpp` to change:
 - `POST_INTERVAL` — posting frequency (default 30s)
-- Event `kind` — currently 8765
+- Event `kind` — currently 4223
 
 ## Project Structure
 

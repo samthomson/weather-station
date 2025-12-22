@@ -418,7 +418,7 @@ bool schnorrSign(const uint8_t* privkey, const uint8_t* msg32, uint8_t* sig64) {
 String createAndSignNostrEvent(String content) {
   unsigned long createdAt = (unsigned long)time(nullptr);
   
-  String canonical = "[0,\"" + nostrPubkey + "\"," + String(createdAt) + ",8765,[],\"" + content + "\"]";
+  String canonical = "[0,\"" + nostrPubkey + "\"," + String(createdAt) + ",4223,[],\"" + content + "\"]";
   
   uint8_t eventIdBytes[32];
   sha256Raw((const uint8_t*)canonical.c_str(), canonical.length(), eventIdBytes);
@@ -434,7 +434,7 @@ String createAndSignNostrEvent(String content) {
   String event = "{\"id\":\"" + eventId + "\",";
   event += "\"pubkey\":\"" + nostrPubkey + "\",";
   event += "\"created_at\":" + String(createdAt) + ",";
-  event += "\"kind\":8765,";
+  event += "\"kind\":4223,";
   event += "\"tags\":[],";
   event += "\"content\":\"" + content + "\",";
   event += "\"sig\":\"" + signature + "\"}";
