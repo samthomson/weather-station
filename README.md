@@ -16,11 +16,12 @@ ESP8266 weather station that posts sensor data to Nostr via WebSocket with BIP-3
 1. Install [PlatformIO](https://platformio.org/)
 2. Copy `include/secrets.h.example` to `include/secrets.h`
 3. Edit `include/secrets.h` with your WiFi credentials a Nostr private key (create a new one for this device)
-4. Build and upload:
+4. Build and upload (connect board via USB first):
    ```bash
    pio run --target upload
    pio device monitor
    ```
+   PlatformIO will auto-detect the connected board. If multiple devices are connected, specify the port with `-e nodemcuv2 --upload-port /dev/ttyUSB0` (adjust port as needed).
 
 ## Configuration
 
