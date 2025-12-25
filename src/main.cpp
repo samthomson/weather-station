@@ -47,7 +47,12 @@ const char* nostrRelayHost = NOSTR_RELAY_HOST;
 const uint16_t nostrRelayPort = 443;
 const char* nostrRelayPath = "/";
 const char* nostrPrivateKeyHex = NOSTR_PRIVKEY;
+const char* stationName = STATION_NAME;
 const unsigned long POST_INTERVAL = 30000;
+
+// Sensor types available on this station
+const char* sensors[] = {"temp", "humidity", "pm25"};
+const int sensorCount = sizeof(sensors) / sizeof(sensors[0]);
 
 SoftwareSerial mySerial(D5, D6);
 unsigned int pm1 = 0, pm2_5 = 0, pm10 = 0;
@@ -60,6 +65,7 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 const int ledRed = D0, ledGreen = D8;
 WebSocketsClient webSocket;
 bool wsConnected = false;
+bool displayAvailable = false;
 String nostrPubkey = "";
 uint8_t privKeyBytes[32];
 uint8_t pubKeyBytes[32];
@@ -79,6 +85,8 @@ void sha256Raw(const uint8_t* data, size_t len, uint8_t* out);
 void taggedHash(const uint8_t* tag, const uint8_t* data, size_t len, uint8_t* out);
 bool schnorrSign(const uint8_t* privkey, const uint8_t* msg, uint8_t* sig);
 String createAndSignNostrEvent(String content);
+String createMetadataEvent();
+void sendMetadataEvent();
 
 // 256-bit big number operations (big-endian)
 int bn_compare(const uint8_t* a, const uint8_t* b) {
@@ -177,11 +185,13 @@ void setup() {
   pinMode(D8, OUTPUT);
   
   if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
-    Serial.println(F("OLED failed"));
-    for (;;);
+    Serial.println(F("OLED failed - continuing without display"));
+    displayAvailable = false;
+  } else {
+    displayAvailable = true;
+    display.clearDisplay();
+    display.setTextColor(WHITE);
   }
-  display.clearDisplay();
-  display.setTextColor(WHITE);
   
   connectWiFi();
   
@@ -197,6 +207,11 @@ void setup() {
   
   derivePubkey();
   setupNostrRelay();
+  
+  // Wait a bit for WebSocket to connect, then send metadata
+  delay(2000);
+  sendMetadataEvent();
+  
   Serial.println("Ready!");
 }
 
@@ -216,13 +231,17 @@ void loop() {
   
   if (now - lastPost > POST_INTERVAL) {
     if (wsConnected && t > 0) {
+      // Send reading event
       String content = "Weather: T=" + String(t,1) + "C H=" + String(h,1) + "% PM2.5=" + String(pm2_5);
       String event = createAndSignNostrEvent(content);
       if (event.length() > 0) {
-        Serial.println("Sending event...");
+        Serial.println("Sending reading event...");
         String msg = "[\"EVENT\"," + event + "]";
         webSocket.sendTXT(msg);
       }
+      
+      // Send metadata event right after
+      sendMetadataEvent();
     }
     lastPost = now;
   }
@@ -284,6 +303,8 @@ void ledStatus() {
 }
 
 void displayOled() {
+  if (!displayAvailable) return;
+  
   display.clearDisplay();
   display.setCursor(0, 0); display.setTextSize(1); display.print("PM2.5: "); display.println(pm2_5);
   display.setCursor(0, 20); display.print("Temp: "); display.print(t,1); display.println("C");
@@ -418,7 +439,10 @@ bool schnorrSign(const uint8_t* privkey, const uint8_t* msg32, uint8_t* sig64) {
 String createAndSignNostrEvent(String content) {
   unsigned long createdAt = (unsigned long)time(nullptr);
   
-  String canonical = "[0,\"" + nostrPubkey + "\"," + String(createdAt) + ",4223,[],\"" + content + "\"]";
+  // Add reference to station metadata event
+  String stationReference = "[[\"a\",\"16158:" + nostrPubkey + ":\"]]";
+  
+  String canonical = "[0,\"" + nostrPubkey + "\"," + String(createdAt) + ",4223," + stationReference + ",\"" + content + "\"]";
   
   uint8_t eventIdBytes[32];
   sha256Raw((const uint8_t*)canonical.c_str(), canonical.length(), eventIdBytes);
@@ -435,9 +459,58 @@ String createAndSignNostrEvent(String content) {
   event += "\"pubkey\":\"" + nostrPubkey + "\",";
   event += "\"created_at\":" + String(createdAt) + ",";
   event += "\"kind\":4223,";
-  event += "\"tags\":[],";
+  event += "\"tags\":" + stationReference + ",";
   event += "\"content\":\"" + content + "\",";
   event += "\"sig\":\"" + signature + "\"}";
   
   return event;
+}
+
+String createMetadataEvent() {
+  unsigned long createdAt = (unsigned long)time(nullptr);
+  
+  // Build tags array for metadata
+  String metadataTags = "[";
+  metadataTags += "[\"name\",\"" + String(stationName) + "\"]";
+  
+  // Add sensor capabilities
+  for (int i = 0; i < sensorCount; i++) {
+    metadataTags += ",[\"sensor\",\"" + String(sensors[i]) + "\"]";
+  }
+  
+  metadataTags += "]";
+  
+  String canonical = "[0,\"" + nostrPubkey + "\"," + String(createdAt) + ",16158," + metadataTags + ",\"\"]";
+  
+  uint8_t eventIdBytes[32];
+  sha256Raw((const uint8_t*)canonical.c_str(), canonical.length(), eventIdBytes);
+  String eventId = bytesToHex(eventIdBytes, 32);
+  
+  uint8_t sig[64];
+  if (!schnorrSign(privKeyBytes, eventIdBytes, sig)) {
+    Serial.println("Metadata sign failed!");
+    return "";
+  }
+  String signature = bytesToHex(sig, 64);
+  
+  String event = "{\"id\":\"" + eventId + "\",";
+  event += "\"pubkey\":\"" + nostrPubkey + "\",";
+  event += "\"created_at\":" + String(createdAt) + ",";
+  event += "\"kind\":16158,";
+  event += "\"tags\":" + metadataTags + ",";
+  event += "\"content\":\"\",";
+  event += "\"sig\":\"" + signature + "\"}";
+  
+  return event;
+}
+
+void sendMetadataEvent() {
+  if (!wsConnected) return;
+  
+  String metadataEvent = createMetadataEvent();
+  if (metadataEvent.length() > 0) {
+    Serial.println("Sending metadata event...");
+    String msg = "[\"EVENT\"," + metadataEvent + "]";
+    webSocket.sendTXT(msg);
+  }
 }
