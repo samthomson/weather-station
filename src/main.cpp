@@ -51,7 +51,7 @@ const char* stationName = STATION_NAME;
 const unsigned long POST_INTERVAL = 30000;
 
 // Sensor types available on this station
-const char* sensors[] = {"temp", "humidity", "pm25"};
+const char* sensors[] = {"temp", "humidity", "pm1", "pm25", "pm10"};
 const int sensorCount = sizeof(sensors) / sizeof(sensors[0]);
 
 SoftwareSerial mySerial(D5, D6);
@@ -84,7 +84,7 @@ void hexToBytes(const char* hex, uint8_t* bytes, int len);
 void sha256Raw(const uint8_t* data, size_t len, uint8_t* out);
 void taggedHash(const uint8_t* tag, const uint8_t* data, size_t len, uint8_t* out);
 bool schnorrSign(const uint8_t* privkey, const uint8_t* msg, uint8_t* sig);
-String createAndSignNostrEvent(float temp, float humidity, unsigned int pm25);
+String createAndSignNostrEvent(float temp, float humidity, unsigned int pm1_val, unsigned int pm25_val, unsigned int pm10_val);
 String createMetadataEvent();
 void sendMetadataEvent();
 
@@ -231,8 +231,8 @@ void loop() {
   
   if (now - lastPost > POST_INTERVAL) {
     if (wsConnected && t > 0) {
-      // Send reading event with sensor data in tags
-      String event = createAndSignNostrEvent(t, h, pm2_5);
+      // Send reading event with all sensor data in tags
+      String event = createAndSignNostrEvent(t, h, pm1, pm2_5, pm10);
       if (event.length() > 0) {
         Serial.println("Sending reading event...");
         String msg = "[\"EVENT\"," + event + "]";
@@ -435,7 +435,7 @@ bool schnorrSign(const uint8_t* privkey, const uint8_t* msg32, uint8_t* sig64) {
   return true;
 }
 
-String createAndSignNostrEvent(float temp, float humidity, unsigned int pm25) {
+String createAndSignNostrEvent(float temp, float humidity, unsigned int pm1_val, unsigned int pm25_val, unsigned int pm10_val) {
   unsigned long createdAt = (unsigned long)time(nullptr);
   
   // Build tags with station reference and sensor data
@@ -443,7 +443,9 @@ String createAndSignNostrEvent(float temp, float humidity, unsigned int pm25) {
   readingTags += "[\"a\",\"16158:" + nostrPubkey + ":\"],";
   readingTags += "[\"temp\",\"" + String(temp, 1) + "\"],";
   readingTags += "[\"humidity\",\"" + String(humidity, 1) + "\"],";
-  readingTags += "[\"pm25\",\"" + String(pm25) + "\"]";
+  readingTags += "[\"pm1\",\"" + String(pm1_val) + "\"],";
+  readingTags += "[\"pm25\",\"" + String(pm25_val) + "\"],";
+  readingTags += "[\"pm10\",\"" + String(pm10_val) + "\"]";
   readingTags += "]";
   
   String canonical = "[0,\"" + nostrPubkey + "\"," + String(createdAt) + ",4223," + readingTags + ",\"\"]";
