@@ -53,7 +53,4 @@ The station publishes two types of Nostr events:
 
 ## todo
 
-- [x] Replaceable event for weather station metadata (kind:16158)
-- [x] Reading event format matches NIP spec (sensor values in tags)
-- [x] All PM values (PM1.0, PM2.5, PM10)
-- [x] Geohash location (NIP-52 `g` tag)
+- [ ] how to handle diff sensor types for the same reading (eg diff brand pm25 sensors)
