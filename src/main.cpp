@@ -52,8 +52,35 @@ const char* stationGeohash = STATION_GEOHASH;
 const char* stationElevation = STATION_ELEVATION;
 const unsigned long POST_INTERVAL = 30000;
 
-// Sensor types available on this station
-const char* sensors[] = {"temp", "humidity", "pm1", "pm25", "pm10", "air_quality"};
+// Nostr tag names (standardized)
+const char* TAG_TEMP = "temp";
+const char* TAG_HUMIDITY = "humidity";
+const char* TAG_PM1 = "pm1";
+const char* TAG_PM25 = "pm25";
+const char* TAG_PM10 = "pm10";
+const char* TAG_AIR_QUALITY = "air_quality";
+const char* TAG_HASHTAG = "t";
+const char* HASHTAG_WEATHER = "weather";
+
+// Sensor models
+const char* MODEL_DHT11 = "DHT11";
+const char* MODEL_PMS5003 = "PMS5003";
+const char* MODEL_MQ135 = "MQ-135";
+
+// Sensor types available on this station (for metadata)
+struct SensorInfo {
+  const char* type;
+  const char* model;
+};
+
+const SensorInfo sensors[] = {
+  {TAG_TEMP, MODEL_DHT11},
+  {TAG_HUMIDITY, MODEL_DHT11},
+  {TAG_PM1, MODEL_PMS5003},
+  {TAG_PM25, MODEL_PMS5003},
+  {TAG_PM10, MODEL_PMS5003},
+  {TAG_AIR_QUALITY, MODEL_MQ135}
+};
 const int sensorCount = sizeof(sensors) / sizeof(sensors[0]);
 
 SoftwareSerial mySerial(D5, D6);
@@ -438,15 +465,16 @@ bool schnorrSign(const uint8_t* privkey, const uint8_t* msg32, uint8_t* sig64) {
 String createAndSignNostrEvent(float temp, float humidity, unsigned int pm1_val, unsigned int pm25_val, unsigned int pm10_val, unsigned int aq_val) {
   unsigned long createdAt = (unsigned long)time(nullptr);
   
-  // Build tags with station reference and sensor data
+  // Build tags with station reference and sensor data (with model info)
   String readingTags = "[";
+  readingTags += "[\"" + String(TAG_HASHTAG) + "\",\"" + String(HASHTAG_WEATHER) + "\"],";
   readingTags += "[\"a\",\"16158:" + nostrPubkey + ":\"],";
-  readingTags += "[\"temp\",\"" + String(temp, 1) + "\"],";
-  readingTags += "[\"humidity\",\"" + String(humidity, 1) + "\"],";
-  readingTags += "[\"pm1\",\"" + String(pm1_val) + "\"],";
-  readingTags += "[\"pm25\",\"" + String(pm25_val) + "\"],";
-  readingTags += "[\"pm10\",\"" + String(pm10_val) + "\"],";
-  readingTags += "[\"air_quality\",\"" + String(aq_val) + "\"]";
+  readingTags += "[\"" + String(TAG_TEMP) + "\",\"" + String(temp, 1) + "\",\"" + String(MODEL_DHT11) + "\"],";
+  readingTags += "[\"" + String(TAG_HUMIDITY) + "\",\"" + String(humidity, 1) + "\",\"" + String(MODEL_DHT11) + "\"],";
+  readingTags += "[\"" + String(TAG_PM1) + "\",\"" + String(pm1_val) + "\",\"" + String(MODEL_PMS5003) + "\"],";
+  readingTags += "[\"" + String(TAG_PM25) + "\",\"" + String(pm25_val) + "\",\"" + String(MODEL_PMS5003) + "\"],";
+  readingTags += "[\"" + String(TAG_PM10) + "\",\"" + String(pm10_val) + "\",\"" + String(MODEL_PMS5003) + "\"],";
+  readingTags += "[\"" + String(TAG_AIR_QUALITY) + "\",\"" + String(aq_val) + "\",\"" + String(MODEL_MQ135) + "\"]";
   readingTags += "]";
   
   String canonical = "[0,\"" + nostrPubkey + "\"," + String(createdAt) + ",4223," + readingTags + ",\"\"]";
@@ -490,9 +518,9 @@ String createMetadataEvent() {
     metadataTags += ",[\"elevation\",\"" + String(stationElevation) + "\"]";
   }
   
-  // Add sensor capabilities
+  // Add sensor capabilities with models
   for (int i = 0; i < sensorCount; i++) {
-    metadataTags += ",[\"sensor\",\"" + String(sensors[i]) + "\"]";
+    metadataTags += ",[\"sensor\",\"" + String(sensors[i].type) + "\",\"" + String(sensors[i].model) + "\"]";
   }
   
   metadataTags += "]";

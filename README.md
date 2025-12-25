@@ -39,10 +39,41 @@ Edit `src/main.cpp` to change:
 
 ## Events Published
 
-- **kind:16158** (replaceable) — Station metadata: name, location, sensor types
-- **kind:4223** (regular) — Sensor readings in tags
+### kind:16158 (replaceable) — Station Metadata
 
-**Units:** temp=°C, humidity=%, pm=µg/m³, air_quality=0-1023 raw
+Describes the station and its sensors:
+
+```json
+{
+  "tags": [
+    ["name", "Weather Station 1"],
+    ["g", "w5q6u"],
+    ["sensor", "temp", "DHT11"],
+    ["sensor", "pm25", "PMS5003"]
+  ]
+}
+```
+
+### kind:4223 (regular) — Sensor Readings
+
+Each tag: `[sensor_type, value, model]`
+
+```json
+{
+  "tags": [
+    ["t", "weather"],
+    ["a", "16158:<pubkey>:"],
+    ["temp", "22.5", "DHT11"],
+    ["humidity", "65.2", "DHT11"],
+    ["pm25", "12", "PMS5003"],
+    ["air_quality", "627", "MQ-135"]
+  ]
+}
+```
+
+**Tag Structure:** Third parameter identifies sensor model for cross-station comparison and multi-sensor setups.
+
+**Units:** temp=°C, humidity=%, pm1/pm25/pm10=µg/m³, air_quality=0-1023 (raw analog)
 
 ## Project Structure
 
