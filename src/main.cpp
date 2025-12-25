@@ -84,7 +84,7 @@ void hexToBytes(const char* hex, uint8_t* bytes, int len);
 void sha256Raw(const uint8_t* data, size_t len, uint8_t* out);
 void taggedHash(const uint8_t* tag, const uint8_t* data, size_t len, uint8_t* out);
 bool schnorrSign(const uint8_t* privkey, const uint8_t* msg, uint8_t* sig);
-String createAndSignNostrEvent(String content);
+String createAndSignNostrEvent(float temp, float humidity, unsigned int pm25);
 String createMetadataEvent();
 void sendMetadataEvent();
 
@@ -231,9 +231,8 @@ void loop() {
   
   if (now - lastPost > POST_INTERVAL) {
     if (wsConnected && t > 0) {
-      // Send reading event
-      String content = "Weather: T=" + String(t,1) + "C H=" + String(h,1) + "% PM2.5=" + String(pm2_5);
-      String event = createAndSignNostrEvent(content);
+      // Send reading event with sensor data in tags
+      String event = createAndSignNostrEvent(t, h, pm2_5);
       if (event.length() > 0) {
         Serial.println("Sending reading event...");
         String msg = "[\"EVENT\"," + event + "]";
@@ -436,13 +435,18 @@ bool schnorrSign(const uint8_t* privkey, const uint8_t* msg32, uint8_t* sig64) {
   return true;
 }
 
-String createAndSignNostrEvent(String content) {
+String createAndSignNostrEvent(float temp, float humidity, unsigned int pm25) {
   unsigned long createdAt = (unsigned long)time(nullptr);
   
-  // Add reference to station metadata event
-  String stationReference = "[[\"a\",\"16158:" + nostrPubkey + ":\"]]";
+  // Build tags with station reference and sensor data
+  String readingTags = "[";
+  readingTags += "[\"a\",\"16158:" + nostrPubkey + ":\"],";
+  readingTags += "[\"temp\",\"" + String(temp, 1) + "\"],";
+  readingTags += "[\"humidity\",\"" + String(humidity, 1) + "\"],";
+  readingTags += "[\"pm25\",\"" + String(pm25) + "\"]";
+  readingTags += "]";
   
-  String canonical = "[0,\"" + nostrPubkey + "\"," + String(createdAt) + ",4223," + stationReference + ",\"" + content + "\"]";
+  String canonical = "[0,\"" + nostrPubkey + "\"," + String(createdAt) + ",4223," + readingTags + ",\"\"]";
   
   uint8_t eventIdBytes[32];
   sha256Raw((const uint8_t*)canonical.c_str(), canonical.length(), eventIdBytes);
@@ -459,8 +463,8 @@ String createAndSignNostrEvent(String content) {
   event += "\"pubkey\":\"" + nostrPubkey + "\",";
   event += "\"created_at\":" + String(createdAt) + ",";
   event += "\"kind\":4223,";
-  event += "\"tags\":" + stationReference + ",";
-  event += "\"content\":\"" + content + "\",";
+  event += "\"tags\":" + readingTags + ",";
+  event += "\"content\":\"\",";
   event += "\"sig\":\"" + signature + "\"}";
   
   return event;
