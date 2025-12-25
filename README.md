@@ -8,14 +8,19 @@ ESP8266 weather station that posts sensor data to Nostr via WebSocket with BIP-3
 
 - NodeMCU v2 (ESP8266)
 - DHT11 temperature/humidity sensor (D7)
-- PMS5003 PM2.5 sensor (D5/D6) — *currently not working*
+- PMS5003 particulate matter sensor (D5/D6) — reads PM1.0, PM2.5, PM10
 - SSD1306 OLED display (I2C) - optional if you are only interested in posting to nostr
 
 ## Setup
 
 1. Install [PlatformIO](https://platformio.org/)
 2. Copy `include/secrets.h.example` to `include/secrets.h`
-3. Edit `include/secrets.h` with your WiFi credentials a Nostr private key (create a new one for this device)
+3. Edit `include/secrets.h` with:
+   - WiFi credentials
+   - Nostr private key (create a new one for this device)
+   - Station name
+   - Geohash location (use [geohash.jorren.nl](https://geohash.jorren.nl/) to find yours) (optional)
+   - Elevation in meters (optional)
 4. Build and upload (connect board via USB first):
    ```bash
    pio run --target upload
@@ -27,7 +32,14 @@ ESP8266 weather station that posts sensor data to Nostr via WebSocket with BIP-3
 
 Edit `src/main.cpp` to change:
 - `POST_INTERVAL` — posting frequency (default 30s)
-- Event `kind` — currently 4223
+- `sensors[]` array — add/remove sensor types
+
+## Events Published
+
+The station publishes two types of Nostr events:
+
+- **kind:16158** (replaceable) — Weather station metadata with name, location (geohash), and sensor capabilities
+- **kind:4223** (regular) — Sensor readings with temperature, humidity, PM1.0, PM2.5, PM10 in tags
 
 ## Project Structure
 
@@ -41,7 +53,7 @@ Edit `src/main.cpp` to change:
 
 ## todo
 
-- [ ] add replaceable event for the weather station itself
-- [ ] change format of reading event to match spec (values in tags)
-- [ ] more pm values
-- [ ] geohash location?
+- [x] Replaceable event for weather station metadata (kind:16158)
+- [x] Reading event format matches NIP spec (sensor values in tags)
+- [x] All PM values (PM1.0, PM2.5, PM10)
+- [x] Geohash location (NIP-52 `g` tag)

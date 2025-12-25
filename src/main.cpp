@@ -48,6 +48,8 @@ const uint16_t nostrRelayPort = 443;
 const char* nostrRelayPath = "/";
 const char* nostrPrivateKeyHex = NOSTR_PRIVKEY;
 const char* stationName = STATION_NAME;
+const char* stationGeohash = STATION_GEOHASH;
+const char* stationElevation = STATION_ELEVATION;
 const unsigned long POST_INTERVAL = 30000;
 
 // Sensor types available on this station
@@ -478,6 +480,16 @@ String createMetadataEvent() {
   // Build tags array for metadata
   String metadataTags = "[";
   metadataTags += "[\"name\",\"" + String(stationName) + "\"]";
+  
+  // Add geohash location (NIP-52)
+  if (strlen(stationGeohash) > 0) {
+    metadataTags += ",[\"g\",\"" + String(stationGeohash) + "\"]";
+  }
+  
+  // Add elevation if provided
+  if (strlen(stationElevation) > 0) {
+    metadataTags += ",[\"elevation\",\"" + String(stationElevation) + "\"]";
+  }
   
   // Add sensor capabilities
   for (int i = 0; i < sensorCount; i++) {
