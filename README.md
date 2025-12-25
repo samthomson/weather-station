@@ -38,3 +38,10 @@ Edit `src/main.cpp` to change:
 ├── platformio.ini
 └── README.md
 ```
+
+## todo
+
+- [ ] add replaceable event for the weather station itself
+- [ ] change format of reading event to match spec (values in tags)
+- [ ] more pm values
+- [ ] geohash location?
