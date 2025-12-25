@@ -53,7 +53,7 @@ const char* stationElevation = STATION_ELEVATION;
 const unsigned long POST_INTERVAL = 30000;
 
 // Sensor types available on this station
-const char* sensors[] = {"temp", "humidity", "pm1", "pm25", "pm10"};
+const char* sensors[] = {"temp", "humidity", "pm1", "pm25", "pm10", "air_quality"};
 const int sensorCount = sizeof(sensors) / sizeof(sensors[0]);
 
 SoftwareSerial mySerial(D5, D6);
@@ -61,6 +61,7 @@ unsigned int pm1 = 0, pm2_5 = 0, pm10 = 0;
 #define DHTTYPE DHT11
 DHT dht(D7, DHTTYPE);
 float t = 0, h = 0;
+unsigned int airQuality = 0;
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
@@ -77,6 +78,7 @@ void setupNostrRelay();
 void webSocketEvent(WStype_t type, uint8_t* payload, size_t length);
 void pmReadData();
 void dhtData();
+void mqReadData();
 void displayOled();
 void derivePubkey();
 String bytesToHex(uint8_t* bytes, int len);
@@ -84,7 +86,7 @@ void hexToBytes(const char* hex, uint8_t* bytes, int len);
 void sha256Raw(const uint8_t* data, size_t len, uint8_t* out);
 void taggedHash(const uint8_t* tag, const uint8_t* data, size_t len, uint8_t* out);
 bool schnorrSign(const uint8_t* privkey, const uint8_t* msg, uint8_t* sig);
-String createAndSignNostrEvent(float temp, float humidity, unsigned int pm1_val, unsigned int pm25_val, unsigned int pm10_val);
+String createAndSignNostrEvent(float temp, float humidity, unsigned int pm1_val, unsigned int pm25_val, unsigned int pm10_val, unsigned int aq_val);
 String createMetadataEvent();
 void sendMetadataEvent();
 
@@ -222,6 +224,7 @@ void loop() {
   if (now - lastSensor > 2000) {
     pmReadData();
     dhtData();
+    mqReadData();
     displayOled();
     lastSensor = now;
   }
@@ -229,7 +232,7 @@ void loop() {
   if (now - lastPost > POST_INTERVAL) {
     if (wsConnected && t > 0) {
       // Send reading event with all sensor data in tags
-      String event = createAndSignNostrEvent(t, h, pm1, pm2_5, pm10);
+      String event = createAndSignNostrEvent(t, h, pm1, pm2_5, pm10, airQuality);
       if (event.length() > 0) {
         Serial.println("Sending reading event...");
         String msg = "[\"EVENT\"," + event + "]";
@@ -291,6 +294,11 @@ void dhtData() {
   if (!isnan(t)) {
     Serial.print("T:"); Serial.print(t,1); Serial.print(" H:"); Serial.println(h,1);
   }
+}
+
+void mqReadData() {
+  airQuality = analogRead(A0);
+  Serial.print("Air Quality: "); Serial.println(airQuality);
 }
 
 void displayOled() {
@@ -427,7 +435,7 @@ bool schnorrSign(const uint8_t* privkey, const uint8_t* msg32, uint8_t* sig64) {
   return true;
 }
 
-String createAndSignNostrEvent(float temp, float humidity, unsigned int pm1_val, unsigned int pm25_val, unsigned int pm10_val) {
+String createAndSignNostrEvent(float temp, float humidity, unsigned int pm1_val, unsigned int pm25_val, unsigned int pm10_val, unsigned int aq_val) {
   unsigned long createdAt = (unsigned long)time(nullptr);
   
   // Build tags with station reference and sensor data
@@ -437,7 +445,8 @@ String createAndSignNostrEvent(float temp, float humidity, unsigned int pm1_val,
   readingTags += "[\"humidity\",\"" + String(humidity, 1) + "\"],";
   readingTags += "[\"pm1\",\"" + String(pm1_val) + "\"],";
   readingTags += "[\"pm25\",\"" + String(pm25_val) + "\"],";
-  readingTags += "[\"pm10\",\"" + String(pm10_val) + "\"]";
+  readingTags += "[\"pm10\",\"" + String(pm10_val) + "\"],";
+  readingTags += "[\"air_quality\",\"" + String(aq_val) + "\"]";
   readingTags += "]";
   
   String canonical = "[0,\"" + nostrPubkey + "\"," + String(createdAt) + ",4223," + readingTags + ",\"\"]";

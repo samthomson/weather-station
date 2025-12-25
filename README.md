@@ -7,9 +7,12 @@ ESP8266 weather station that posts sensor data to Nostr via WebSocket with BIP-3
 ## Hardware
 
 - NodeMCU v2 (ESP8266)
-- DHT11 temperature/humidity sensor (D7)
-- PMS5003 particulate matter sensor (D5/D6) — reads PM1.0, PM2.5, PM10
-- SSD1306 OLED display (I2C) - optional if you are only interested in posting to nostr
+- DHT11 temp/humidity (D7) — also works: DHT22
+- PMS5003 particulate matter (D5/D6) — reads PM1.0, PM2.5, PM10 | also works: PMS7003
+- MQ-135/MQ-7 air quality (A0) — uncalibrated gas detection 0-1023 | also works: MQ-2, other MQ series
+- SSD1306 OLED display (I2C) - optional
+
+**Note:** ESP8266 has one analog pin. For more analog sensors, add ADS1115 or use ESP32.
 
 ## Setup
 
@@ -36,10 +39,10 @@ Edit `src/main.cpp` to change:
 
 ## Events Published
 
-The station publishes two types of Nostr events:
+- **kind:16158** (replaceable) — Station metadata: name, location, sensor types
+- **kind:4223** (regular) — Sensor readings in tags
 
-- **kind:16158** (replaceable) — Weather station metadata with name, location (geohash), and sensor capabilities
-- **kind:4223** (regular) — Sensor readings with temperature, humidity, PM1.0, PM2.5, PM10 in tags
+**Units:** temp=°C, humidity=%, pm=µg/m³, air_quality=0-1023 raw
 
 ## Project Structure
 
