@@ -64,7 +64,6 @@ float t = 0, h = 0;
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
-const int ledRed = D0, ledGreen = D8;
 WebSocketsClient webSocket;
 bool wsConnected = false;
 bool displayAvailable = false;
@@ -79,7 +78,6 @@ void webSocketEvent(WStype_t type, uint8_t* payload, size_t length);
 void pmReadData();
 void dhtData();
 void displayOled();
-void ledStatus();
 void derivePubkey();
 String bytesToHex(uint8_t* bytes, int len);
 void hexToBytes(const char* hex, uint8_t* bytes, int len);
@@ -183,8 +181,6 @@ void setup() {
   
   mySerial.begin(9600);  // PMS5003/PMS7003 default baud rate
   dht.begin();
-  pinMode(D0, OUTPUT);
-  pinMode(D8, OUTPUT);
   
   if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
     Serial.println(F("OLED failed - continuing without display"));
@@ -227,7 +223,6 @@ void loop() {
     pmReadData();
     dhtData();
     displayOled();
-    ledStatus();
     lastSensor = now;
   }
   
@@ -296,11 +291,6 @@ void dhtData() {
   if (!isnan(t)) {
     Serial.print("T:"); Serial.print(t,1); Serial.print(" H:"); Serial.println(h,1);
   }
-}
-
-void ledStatus() {
-  digitalWrite(ledGreen, pm2_5 <= 100 ? HIGH : LOW);
-  digitalWrite(ledRed, pm2_5 > 50 ? HIGH : LOW);
 }
 
 void displayOled() {
