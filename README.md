@@ -57,3 +57,5 @@ Edit `src/main.cpp` to change:
 ## todo
 
 - [ ] how to handle diff sensor types for the same reading (eg diff brand pm25 sensors)
+- [ ] automated tests
+- [ ] web dashboard
