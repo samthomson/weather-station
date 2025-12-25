@@ -50,6 +50,8 @@ const char* nostrPrivateKeyHex = NOSTR_PRIVKEY;
 const char* stationName = STATION_NAME;
 const char* stationGeohash = STATION_GEOHASH;
 const char* stationElevation = STATION_ELEVATION;
+const char* stationPower = STATION_POWER;
+const char* stationConnectivity = STATION_CONNECTIVITY;
 const unsigned long POST_INTERVAL = 30000;
 
 // Nostr tag names (standardized)
@@ -517,6 +519,10 @@ String createMetadataEvent() {
   if (strlen(stationElevation) > 0) {
     metadataTags += ",[\"elevation\",\"" + String(stationElevation) + "\"]";
   }
+  
+  // Add power and connectivity info
+  metadataTags += ",[\"power\",\"" + String(stationPower) + "\"]";
+  metadataTags += ",[\"connectivity\",\"" + String(stationConnectivity) + "\"]";
   
   // Add sensor capabilities with models
   for (int i = 0; i < sensorCount; i++) {

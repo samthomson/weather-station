@@ -24,6 +24,8 @@ ESP8266 weather station that posts sensor data to Nostr via WebSocket with BIP-3
    - Station name
    - Geohash location (use [geohash.jorren.nl](https://geohash.jorren.nl/) to find yours) (optional)
    - Elevation in meters (optional)
+   - Power source (mains, solar, battery, etc.)
+   - Connectivity type (wifi, cellular, etc.)
 4. Build and upload (connect board via USB first):
    ```bash
    pio run --target upload
@@ -41,18 +43,23 @@ Edit `src/main.cpp` to change:
 
 ### kind:16158 (replaceable) — Station Metadata
 
-Describes the station and its sensors:
+Describes the station hardware, power, and sensors:
 
 ```json
 {
   "tags": [
     ["name", "Weather Station 1"],
     ["g", "w5q6u"],
+    ["power", "mains"],
+    ["connectivity", "wifi"],
     ["sensor", "temp", "DHT11"],
     ["sensor", "pm25", "PMS5003"]
   ]
 }
 ```
+
+**Power types:** Currently `mains` only. Planned: `solar`, `battery`, `solar_battery`, `usb`  
+**Connectivity types:** Currently `wifi` only. Planned: `cellular`, `ethernet`, `lora`, `satellite`
 
 ### kind:4223 (regular) — Sensor Readings
 
