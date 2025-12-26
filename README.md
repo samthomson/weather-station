@@ -6,32 +6,65 @@ ESP8266 weather station that posts sensor data to Nostr via WebSocket with BIP-3
 
 ## Hardware
 
+**Supported Boards:**
 - NodeMCU v2 (ESP8266)
-- DHT11 temp/humidity (D7) — also works: DHT22
-- PMS5003 particulate matter (D5/D6) — reads PM1.0, PM2.5, PM10 | also works: PMS7003
-- MQ-135/MQ-7 air quality (A0) — uncalibrated gas detection 0-1023 | also works: MQ-2, other MQ series
+- ESP32 Dev Board
+
+**Sensors:**
+- DHT11 temp/humidity — also works: DHT22
+- PMS5003 particulate matter — reads PM1.0, PM2.5, PM10 | also works: PMS7003
+- MQ-135/MQ-7 air quality — uncalibrated gas detection 0-1023 | also works: MQ-2, other MQ series
 - SSD1306 OLED display (I2C) - optional
 
-**Note:** ESP8266 has one analog pin. For more analog sensors, add ADS1115 or use ESP32.
+### Pin Connections
+
+**ESP8266 (NodeMCU v2):**
+- DHT11: D7
+- PMS5003: TX→D5, RX→D6
+- MQ sensor: A0
+- OLED: I2C (D1=SCL, D2=SDA)
+
+**ESP32:**
+- DHT11: GPIO4
+- PMS5003: TX→GPIO16 (RX2), RX→GPIO17 (TX2)
+- MQ sensor: GPIO36 (ADC1_CH0)
+- OLED: I2C (GPIO21=SDA, GPIO22=SCL)
+
+**Note:** ESP8266 has one analog pin. ESP32 has many - great for multiple analog sensors!
 
 ## Setup
 
 1. Install [PlatformIO](https://platformio.org/)
-2. Copy `include/secrets.h.example` to `include/secrets.h`
-3. Edit `include/secrets.h` with:
+2. Create station-specific secrets files:
+   - Copy `include/secrets.h.example` to `include/secrets_station1.h`
+   - Copy `include/secrets.h.example` to `include/secrets_station2.h` (if you have multiple stations)
+3. Edit each secrets file with:
    - WiFi credentials
-   - Nostr private key (create a new one for this device)
-   - Station name
+   - Nostr private key (create a **unique key for each station**)
+   - Station name (unique per station)
    - Geohash location (use [geohash.jorren.nl](https://geohash.jorren.nl/) to find yours) (optional)
    - Elevation in meters (optional)
    - Power source (mains, solar, battery, etc.)
    - Connectivity type (wifi, cellular, etc.)
+
+**Note:** Each station should have its own Nostr keypair so they have separate identities on the network.
 4. Build and upload (connect board via USB first):
+   
+   **Station 1 - ESP8266 (NodeMCU v2):**
    ```bash
-   pio run --target upload
-   pio device monitor
+   pio run -e nodemcuv2_station1 --target upload
+   pio device monitor -e nodemcuv2_station1
    ```
-   PlatformIO will auto-detect the connected board. If multiple devices are connected, specify the port with `-e nodemcuv2 --upload-port /dev/ttyUSB0` (adjust port as needed).
+   
+   **Station 2 - ESP32:**
+   ```bash
+   pio run -e esp32dev_station2 --target upload
+   pio device monitor -e esp32dev_station2
+   ```
+   
+   If multiple devices are connected, specify the port with `--upload-port /dev/ttyUSB0` (adjust as needed).
+   
+   To add more stations, create new environments in `platformio.ini` with unique secrets files.
 
 ## Configuration
 
