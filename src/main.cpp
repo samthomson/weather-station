@@ -28,9 +28,9 @@
   #include "uECC.h"
 #endif
 
-// Include station-specific secrets (defined by build flag)
+// Include station-specific secrets (must be defined by build flag)
 #ifndef SECRETS_FILE
-  #define SECRETS_FILE "secrets.h"  // Default fallback
+  #error "SECRETS_FILE must be defined! Use -DSECRETS_FILE=\"secrets_stationX.h\" in platformio.ini"
 #endif
 #include SECRETS_FILE
 
@@ -97,26 +97,26 @@ struct SensorInfo {
   const char* model;
 };
 
-// Build sensor list based on what's enabled
-#if ENABLE_DHT && ENABLE_PMS && ENABLE_MQ
-  const SensorInfo sensors[] = {
+// Build sensor list modularly - each enabled sensor adds its readings
+// Validate that required models are defined if sensors are enabled
+#if ENABLE_PMS && !defined(PMS_MODEL)
+  #error "PMS_MODEL must be defined in secrets file when ENABLE_PMS is true"
+#endif
+
+const SensorInfo sensors[] = {
+  #if ENABLE_DHT
     {TAG_TEMP, MODEL_DHT11},
     {TAG_HUMIDITY, MODEL_DHT11},
-    {TAG_PM1, MODEL_PMS5003},
-    {TAG_PM25, MODEL_PMS5003},
-    {TAG_PM10, MODEL_PMS5003},
-    {TAG_AIR_QUALITY, MODEL_MQ135}
-  };
-#elif ENABLE_PMS && !ENABLE_DHT && !ENABLE_MQ
-  // Only PM sensor (Station 2 - PMS7003)
-  const SensorInfo sensors[] = {
-    {TAG_PM1, MODEL_PMS7003},
-    {TAG_PM25, MODEL_PMS7003},
-    {TAG_PM10, MODEL_PMS7003}
-  };
-#else
-  #error "Unsupported sensor combination - add your config here"
-#endif
+  #endif
+  #if ENABLE_PMS
+    {TAG_PM1, PMS_MODEL},
+    {TAG_PM25, PMS_MODEL},
+    {TAG_PM10, PMS_MODEL},
+  #endif
+  #if ENABLE_MQ
+    {TAG_AIR_QUALITY, MODEL_MQ135},
+  #endif
+};
 
 const int sensorCount = sizeof(sensors) / sizeof(sensors[0]);
 
