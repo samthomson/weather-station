@@ -127,7 +127,7 @@ Each tag: `[sensor_type, value, model]`
 
 ## todo
 
-- [ ] how to handle diff sensor types for the same reading (eg diff brand pm25 sensors)
 - [ ] automated tests
 - [ ] web dashboard
-- [ ] power status for weather station
+- [ ] more modular readings
+- [ ] once a minute is ample
