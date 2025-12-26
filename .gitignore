@@ -5,3 +5,4 @@
 *.swo
 *~
 include/secrets.h
+include/secrets_station*.h

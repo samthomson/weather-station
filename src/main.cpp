@@ -1,17 +1,38 @@
 #include <Arduino.h>
-#include <ESP8266WiFi.h>
+
+// Board-specific includes
+#ifdef ESP32
+  #include <WiFi.h>
+  #include <WiFiClientSecure.h>
+  #include "soc/soc.h"
+  #include "soc/rtc_cntl_reg.h"
+#else
+  #include <ESP8266WiFi.h>
+  #include <WiFiClientSecure.h>
+  #include <SoftwareSerial.h>
+#endif
+
 #include <time.h>
-#include <WiFiClientSecure.h>
 #include <ArduinoJson.h>
-#include <SoftwareSerial.h>
 #include "DHT.h"
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include <WebSocketsClient.h>
-#include <bearssl/bearssl_hash.h>
-#include "uECC.h"
-#include "secrets.h"
+
+#ifdef ESP32
+  #include <mbedtls/sha256.h>
+  #include "uECC.h"
+#else
+  #include <bearssl/bearssl_hash.h>
+  #include "uECC.h"
+#endif
+
+// Include station-specific secrets (defined by build flag)
+#ifndef SECRETS_FILE
+  #define SECRETS_FILE "secrets.h"  // Default fallback
+#endif
+#include SECRETS_FILE
 
 // secp256k1 curve order n
 static const uint8_t SECP256K1_ORDER[32] = {
@@ -67,6 +88,7 @@ const char* HASHTAG_WEATHER = "weather";
 // Sensor models
 const char* MODEL_DHT11 = "DHT11";
 const char* MODEL_PMS5003 = "PMS5003";
+const char* MODEL_PMS7003 = "PMS7003";
 const char* MODEL_MQ135 = "MQ-135";
 
 // Sensor types available on this station (for metadata)
@@ -75,21 +97,57 @@ struct SensorInfo {
   const char* model;
 };
 
-const SensorInfo sensors[] = {
-  {TAG_TEMP, MODEL_DHT11},
-  {TAG_HUMIDITY, MODEL_DHT11},
-  {TAG_PM1, MODEL_PMS5003},
-  {TAG_PM25, MODEL_PMS5003},
-  {TAG_PM10, MODEL_PMS5003},
-  {TAG_AIR_QUALITY, MODEL_MQ135}
-};
+// Build sensor list based on what's enabled
+#if ENABLE_DHT && ENABLE_PMS && ENABLE_MQ
+  const SensorInfo sensors[] = {
+    {TAG_TEMP, MODEL_DHT11},
+    {TAG_HUMIDITY, MODEL_DHT11},
+    {TAG_PM1, MODEL_PMS5003},
+    {TAG_PM25, MODEL_PMS5003},
+    {TAG_PM10, MODEL_PMS5003},
+    {TAG_AIR_QUALITY, MODEL_MQ135}
+  };
+#elif ENABLE_PMS && !ENABLE_DHT && !ENABLE_MQ
+  // Only PM sensor (Station 2 - PMS7003)
+  const SensorInfo sensors[] = {
+    {TAG_PM1, MODEL_PMS7003},
+    {TAG_PM25, MODEL_PMS7003},
+    {TAG_PM10, MODEL_PMS7003}
+  };
+#else
+  #error "Unsupported sensor combination - add your config here"
+#endif
+
 const int sensorCount = sizeof(sensors) / sizeof(sensors[0]);
 
-SoftwareSerial mySerial(D5, D6);
+// PM sensor serial port - board-specific
+#ifdef ESP32
+  HardwareSerial pmsSerial(2);  // ESP32 UART2
+  #define PMS_SERIAL pmsSerial
+#else
+  SoftwareSerial mySerial(D5, D6);  // ESP8266
+  #define PMS_SERIAL mySerial
+#endif
+
 unsigned int pm1 = 0, pm2_5 = 0, pm10 = 0;
+
+// DHT sensor pin - board-specific
 #define DHTTYPE DHT11
-DHT dht(D7, DHTTYPE);
+#ifdef ESP32
+  #define DHT_PIN 4  // GPIO4 on ESP32
+#else
+  #define DHT_PIN D7  // D7 on ESP8266
+#endif
+DHT dht(DHT_PIN, DHTTYPE);
+
 float t = 0, h = 0;
+
+// MQ sensor analog pin - board-specific
+#ifdef ESP32
+  #define MQ_PIN 36  // GPIO36 (ADC1_CH0) on ESP32
+#else
+  #define MQ_PIN A0  // A0 on ESP8266
+#endif
 unsigned int airQuality = 0;
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
@@ -210,19 +268,58 @@ void setup() {
   
   Serial.println("\n=== Weather Station (Schnorr) ===");
   
-  mySerial.begin(9600);  // PMS5003/PMS7003 default baud rate
-  dht.begin();
+  // Initialize PM sensor serial port (if enabled)
+  #if ENABLE_PMS
+    #ifdef ESP32
+      PMS_SERIAL.begin(9600, SERIAL_8N1, 16, 17);  // RX=GPIO16, TX=GPIO17
+      Serial.println("ESP32: Using Hardware Serial (UART2)");
+    #else
+      PMS_SERIAL.begin(9600);  // D5/D6 on ESP8266
+      Serial.println("ESP8266: Using Software Serial");
+    #endif
+    Serial.println("PMS sensor enabled");
+  #else
+    Serial.println("PMS sensor disabled");
+  #endif
   
-  if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
-    Serial.println(F("OLED failed - continuing without display"));
+  // Initialize DHT sensor (if enabled)
+  #if ENABLE_DHT
+    dht.begin();
+    Serial.println("DHT sensor enabled");
+  #else
+    Serial.println("DHT sensor disabled");
+  #endif
+  
+  // Initialize OLED display (if enabled)
+  #if ENABLE_OLED
+    if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
+      Serial.println(F("OLED failed - continuing without display"));
+      displayAvailable = false;
+    } else {
+      displayAvailable = true;
+      display.clearDisplay();
+      display.setTextColor(WHITE);
+      Serial.println("OLED enabled");
+    }
+  #else
     displayAvailable = false;
-  } else {
-    displayAvailable = true;
-    display.clearDisplay();
-    display.setTextColor(WHITE);
-  }
+    Serial.println("OLED disabled");
+  #endif
   
+  Serial.println("About to connect WiFi...");
+  Serial.flush();
+  
+  #ifdef ESP32
+    // Disable brownout detector (overly sensitive on some ESP32 boards)
+    WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
+    Serial.println("Brownout detector disabled");
+  #endif
+  
+  delay(500);
   connectWiFi();
+  
+  Serial.println("WiFi connected successfully!");
+  Serial.flush();
   
   configTime(0, 0, "pool.ntp.org", "time.nist.gov");
   Serial.print("Time sync");
@@ -251,15 +348,32 @@ void loop() {
   unsigned long now = millis();
   
   if (now - lastSensor > 2000) {
-    pmReadData();
-    dhtData();
-    mqReadData();
-    displayOled();
+    #if ENABLE_PMS
+      pmReadData();
+    #endif
+    #if ENABLE_DHT
+      dhtData();
+    #endif
+    #if ENABLE_MQ
+      mqReadData();
+    #endif
+    #if ENABLE_OLED
+      displayOled();
+    #endif
     lastSensor = now;
   }
   
   if (now - lastPost > POST_INTERVAL) {
-    if (wsConnected && t > 0) {
+    // Check if we have any valid sensor data
+    bool hasData = false;
+    #if ENABLE_DHT
+      hasData = hasData || (t > 0);
+    #endif
+    #if ENABLE_PMS
+      hasData = hasData || (pm2_5 > 0);
+    #endif
+    
+    if (wsConnected && (hasData || !ENABLE_DHT)) {  // Send if we have data OR if DHT is disabled
       // Send reading event with all sensor data in tags
       String event = createAndSignNostrEvent(t, h, pm1, pm2_5, pm10, airQuality);
       if (event.length() > 0) {
@@ -304,8 +418,8 @@ void webSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
 void pmReadData() {
   int index = 0;
   char value, prev = 0;
-  while (mySerial.available()) {
-    value = mySerial.read();
+  while (PMS_SERIAL.available()) {
+    value = PMS_SERIAL.read();
     if ((index == 0 && value != 0x42) || (index == 1 && value != 0x4d)) break;
     if (index == 4 || index == 6 || index == 8) prev = value;
     else if (index == 5) pm1 = 256 * prev + value;
@@ -314,7 +428,7 @@ void pmReadData() {
     else if (index > 15) break;
     index++;
   }
-  while(mySerial.available()) mySerial.read();
+  while(PMS_SERIAL.available()) PMS_SERIAL.read();
 }
 
 void dhtData() {
@@ -326,7 +440,7 @@ void dhtData() {
 }
 
 void mqReadData() {
-  airQuality = analogRead(A0);
+  airQuality = analogRead(MQ_PIN);
   Serial.print("Air Quality: "); Serial.println(airQuality);
 }
 
@@ -357,19 +471,39 @@ void hexToBytes(const char* hex, uint8_t* bytes, int len) {
 }
 
 void sha256Raw(const uint8_t* data, size_t len, uint8_t* out) {
-  br_sha256_context ctx;
-  br_sha256_init(&ctx);
-  br_sha256_update(&ctx, data, len);
-  br_sha256_out(&ctx, out);
+  #ifdef ESP32
+    mbedtls_sha256_context ctx;
+    mbedtls_sha256_init(&ctx);
+    mbedtls_sha256_starts(&ctx, 0);  // 0 = SHA256 (not SHA224)
+    mbedtls_sha256_update(&ctx, data, len);
+    mbedtls_sha256_finish(&ctx, out);
+    mbedtls_sha256_free(&ctx);
+  #else
+    br_sha256_context ctx;
+    br_sha256_init(&ctx);
+    br_sha256_update(&ctx, data, len);
+    br_sha256_out(&ctx, out);
+  #endif
 }
 
 void taggedHash(const uint8_t* tag, const uint8_t* data, size_t len, uint8_t* out) {
-  br_sha256_context ctx;
-  br_sha256_init(&ctx);
-  br_sha256_update(&ctx, tag, 32);
-  br_sha256_update(&ctx, tag, 32);
-  br_sha256_update(&ctx, data, len);
-  br_sha256_out(&ctx, out);
+  #ifdef ESP32
+    mbedtls_sha256_context ctx;
+    mbedtls_sha256_init(&ctx);
+    mbedtls_sha256_starts(&ctx, 0);
+    mbedtls_sha256_update(&ctx, tag, 32);
+    mbedtls_sha256_update(&ctx, tag, 32);
+    mbedtls_sha256_update(&ctx, data, len);
+    mbedtls_sha256_finish(&ctx, out);
+    mbedtls_sha256_free(&ctx);
+  #else
+    br_sha256_context ctx;
+    br_sha256_init(&ctx);
+    br_sha256_update(&ctx, tag, 32);
+    br_sha256_update(&ctx, tag, 32);
+    br_sha256_update(&ctx, data, len);
+    br_sha256_out(&ctx, out);
+  #endif
 }
 
 void derivePubkey() {
