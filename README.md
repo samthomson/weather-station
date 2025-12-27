@@ -131,3 +131,9 @@ Each tag: `[sensor_type, value, model]`
 - [ ] web dashboard
 - [ ] more modular readings
 - [ ] once a minute is ample
+- [ ] MVP
+  - [ ] daylight
+  - [ ] rain
+  - [ ] air pollution
+  - [ ] temperature / humidity
+  - [ ] pressure
