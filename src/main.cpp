@@ -601,16 +601,27 @@ bool schnorrSign(const uint8_t* privkey, const uint8_t* msg32, uint8_t* sig64) {
 String createAndSignNostrEvent(float temp, float humidity, unsigned int pm1_val, unsigned int pm25_val, unsigned int pm10_val, unsigned int aq_val) {
   unsigned long createdAt = (unsigned long)time(nullptr);
   
-  // Build tags with station reference and sensor data (with model info)
+  // Build tags with station reference and sensor data (only for enabled sensors)
   String readingTags = "[";
   readingTags += "[\"" + String(TAG_HASHTAG) + "\",\"" + String(HASHTAG_WEATHER) + "\"],";
-  readingTags += "[\"a\",\"16158:" + nostrPubkey + ":\"],";
-  readingTags += "[\"" + String(TAG_TEMP) + "\",\"" + String(temp, 1) + "\",\"" + String(MODEL_DHT11) + "\"],";
-  readingTags += "[\"" + String(TAG_HUMIDITY) + "\",\"" + String(humidity, 1) + "\",\"" + String(MODEL_DHT11) + "\"],";
-  readingTags += "[\"" + String(TAG_PM1) + "\",\"" + String(pm1_val) + "\",\"" + String(MODEL_PMS5003) + "\"],";
-  readingTags += "[\"" + String(TAG_PM25) + "\",\"" + String(pm25_val) + "\",\"" + String(MODEL_PMS5003) + "\"],";
-  readingTags += "[\"" + String(TAG_PM10) + "\",\"" + String(pm10_val) + "\",\"" + String(MODEL_PMS5003) + "\"],";
-  readingTags += "[\"" + String(TAG_AIR_QUALITY) + "\",\"" + String(aq_val) + "\",\"" + String(MODEL_MQ135) + "\"]";
+  readingTags += "[\"a\",\"16158:" + nostrPubkey + ":\"]";
+  
+  // Add sensor readings only if enabled
+  #if ENABLE_DHT
+    readingTags += ",[\"" + String(TAG_TEMP) + "\",\"" + String(temp, 1) + "\",\"" + String(MODEL_DHT11) + "\"]";
+    readingTags += ",[\"" + String(TAG_HUMIDITY) + "\",\"" + String(humidity, 1) + "\",\"" + String(MODEL_DHT11) + "\"]";
+  #endif
+  
+  #if ENABLE_PMS
+    readingTags += ",[\"" + String(TAG_PM1) + "\",\"" + String(pm1_val) + "\",\"" + String(PMS_MODEL) + "\"]";
+    readingTags += ",[\"" + String(TAG_PM25) + "\",\"" + String(pm25_val) + "\",\"" + String(PMS_MODEL) + "\"]";
+    readingTags += ",[\"" + String(TAG_PM10) + "\",\"" + String(pm10_val) + "\",\"" + String(PMS_MODEL) + "\"]";
+  #endif
+  
+  #if ENABLE_MQ
+    readingTags += ",[\"" + String(TAG_AIR_QUALITY) + "\",\"" + String(aq_val) + "\",\"" + String(MODEL_MQ135) + "\"]";
+  #endif
+  
   readingTags += "]";
   
   String canonical = "[0,\"" + nostrPubkey + "\"," + String(createdAt) + ",4223," + readingTags + ",\"\"]";
