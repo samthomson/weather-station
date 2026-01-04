@@ -16,8 +16,10 @@
 #include <ArduinoJson.h>
 #include "DHT.h"
 #include <Wire.h>
-#include <Adafruit_BME280.h>
-#include <Adafruit_BMP280.h>
+#if ENABLE_BME280
+  #include <Adafruit_BME280.h>
+  #include <Adafruit_BMP280.h>
+#endif
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include <WebSocketsClient.h>
@@ -157,10 +159,12 @@ unsigned int pm1 = 0, pm2_5 = 0, pm10 = 0;
 DHT dht(DHT_PIN, DHTTYPE);
 
 // BME280/BMP280 sensor (I2C)
-Adafruit_BME280 bme;
-Adafruit_BMP280 bmp;
-bool bmeAvailable = false;
-bool bmpAvailable = false;  // BMP280 = no humidity, just temp+pressure
+#if ENABLE_BME280
+  Adafruit_BME280 bme;
+  Adafruit_BMP280 bmp;
+  bool bmeAvailable = false;
+  bool bmpAvailable = false;  // BMP280 = no humidity, just temp+pressure
+#endif
 
 float t = 0, h = 0, p = 0;  // temperature, humidity, pressure
 
@@ -187,7 +191,9 @@ void setupNostrRelay();
 void webSocketEvent(WStype_t type, uint8_t* payload, size_t length);
 void pmReadData();
 void dhtData();
+#if ENABLE_BME280
 void bmeData();
+#endif
 void mqReadData();
 void displayOled();
 void derivePubkey();
@@ -492,6 +498,7 @@ void dhtData() {
   }
 }
 
+#if ENABLE_BME280
 void bmeData() {
   if (bmeAvailable) {
     t = bme.readTemperature();
@@ -510,6 +517,7 @@ void bmeData() {
     Serial.print(" P:"); Serial.print(p,1); Serial.println("hPa");
   }
 }
+#endif
 
 void mqReadData() {
   airQuality = analogRead(MQ_PIN);
