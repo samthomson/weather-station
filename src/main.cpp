@@ -80,7 +80,7 @@ const char* stationGeohash = STATION_GEOHASH;
 const char* stationElevation = STATION_ELEVATION;
 const char* stationPower = STATION_POWER;
 const char* stationConnectivity = STATION_CONNECTIVITY;
-const unsigned long POST_INTERVAL = 30000;
+const unsigned long POST_INTERVAL = 60000;
 
 // Nostr tag names (standardized)
 const char* TAG_TEMP = "temp";
