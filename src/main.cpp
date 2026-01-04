@@ -17,6 +17,7 @@
 #include "DHT.h"
 #include <Wire.h>
 #include <Adafruit_BME280.h>
+#include <Adafruit_BMP280.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include <WebSocketsClient.h>
@@ -89,6 +90,7 @@ const char* HASHTAG_WEATHER = "weather";
 // Sensor models
 const char* MODEL_DHT11 = "DHT11";
 const char* MODEL_BME280 = "BME280";
+const char* MODEL_BMP280 = "BMP280";
 const char* MODEL_PMS5003 = "PMS5003";
 const char* MODEL_PMS7003 = "PMS7003";
 const char* MODEL_MQ135 = "MQ-135";
@@ -115,8 +117,12 @@ const SensorInfo sensors[] = {
   #endif
   #if ENABLE_BME280
     {TAG_TEMP, MODEL_BME280},
-    {TAG_HUMIDITY, MODEL_BME280},
+    {TAG_HUMIDITY, MODEL_BME280},  // Only for BME280, not BMP280
     {TAG_PRESSURE, MODEL_BME280},
+  #endif
+  #if ENABLE_BMP280
+    {TAG_TEMP, MODEL_BMP280},
+    {TAG_PRESSURE, MODEL_BMP280},
   #endif
   #if ENABLE_PMS
     {TAG_PM1, PMS_MODEL},
@@ -150,9 +156,11 @@ unsigned int pm1 = 0, pm2_5 = 0, pm10 = 0;
 #endif
 DHT dht(DHT_PIN, DHTTYPE);
 
-// BME280 sensor (I2C)
+// BME280/BMP280 sensor (I2C)
 Adafruit_BME280 bme;
+Adafruit_BMP280 bmp;
 bool bmeAvailable = false;
+bool bmpAvailable = false;  // BMP280 = no humidity, just temp+pressure
 
 float t = 0, h = 0, p = 0;  // temperature, humidity, pressure
 
@@ -305,20 +313,25 @@ void setup() {
     Serial.println("DHT sensor disabled");
   #endif
   
-  // Initialize BME280 sensor (if enabled)
+  // Initialize BME280/BMP280 sensor (if enabled)
   #if ENABLE_BME280
-    if (!bme.begin(0x76)) {
-      // Try alternate address
-      if (!bme.begin(0x77)) {
-        Serial.println("BME280 not found - continuing without it");
-        bmeAvailable = false;
-      } else {
-        bmeAvailable = true;
-        Serial.println("BME280 enabled (addr 0x77)");
-      }
-    } else {
+    // Try BME280 first (has humidity)
+    if (bme.begin(0x76)) {
       bmeAvailable = true;
       Serial.println("BME280 enabled (addr 0x76)");
+    } else if (bme.begin(0x77)) {
+      bmeAvailable = true;
+      Serial.println("BME280 enabled (addr 0x77)");
+    } 
+    // If BME280 not found, try BMP280 (no humidity)
+    else if (bmp.begin(0x76)) {
+      bmpAvailable = true;
+      Serial.println("BMP280 enabled (addr 0x76) - no humidity");
+    } else if (bmp.begin(0x77)) {
+      bmpAvailable = true;
+      Serial.println("BMP280 enabled (addr 0x77) - no humidity");
+    } else {
+      Serial.println("BME280/BMP280 not found - continuing without it");
     }
   #else
     Serial.println("BME280 sensor disabled");
@@ -407,7 +420,7 @@ void loop() {
       hasData = hasData || (t > 0);
     #endif
     #if ENABLE_BME280
-      hasData = hasData || (bmeAvailable && t > 0);
+      hasData = hasData || ((bmeAvailable || bmpAvailable) && t > 0);
     #endif
     #if ENABLE_PMS
       hasData = hasData || (pm2_5 > 0);
@@ -480,15 +493,22 @@ void dhtData() {
 }
 
 void bmeData() {
-  if (!bmeAvailable) return;
-  
-  t = bme.readTemperature();
-  h = bme.readHumidity();
-  p = bme.readPressure() / 100.0F;  // Convert Pa to hPa
-  
-  Serial.print("BME280 - T:"); Serial.print(t,1); 
-  Serial.print(" H:"); Serial.print(h,1);
-  Serial.print(" P:"); Serial.print(p,1); Serial.println("hPa");
+  if (bmeAvailable) {
+    t = bme.readTemperature();
+    h = bme.readHumidity();
+    p = bme.readPressure() / 100.0F;  // Convert Pa to hPa
+    
+    Serial.print("BME280 - T:"); Serial.print(t,1); 
+    Serial.print(" H:"); Serial.print(h,1);
+    Serial.print(" P:"); Serial.print(p,1); Serial.println("hPa");
+  } else if (bmpAvailable) {
+    t = bmp.readTemperature();
+    h = 0;  // BMP280 has no humidity sensor
+    p = bmp.readPressure() / 100.0F;  // Convert Pa to hPa
+    
+    Serial.print("BMP280 - T:"); Serial.print(t,1); 
+    Serial.print(" P:"); Serial.print(p,1); Serial.println("hPa");
+  }
 }
 
 void mqReadData() {
@@ -665,9 +685,16 @@ String createAndSignNostrEvent(float temp, float humidity, unsigned int pm1_val,
   #endif
   
   #if ENABLE_BME280
-    readingTags += ",[\"" + String(TAG_TEMP) + "\",\"" + String(temp, 1) + "\",\"" + String(MODEL_BME280) + "\"]";
-    readingTags += ",[\"" + String(TAG_HUMIDITY) + "\",\"" + String(humidity, 1) + "\",\"" + String(MODEL_BME280) + "\"]";
-    readingTags += ",[\"" + String(TAG_PRESSURE) + "\",\"" + String(p, 1) + "\",\"" + String(MODEL_BME280) + "\"]";
+    if (bmeAvailable) {
+      // BME280 has temp, humidity, and pressure
+      readingTags += ",[\"" + String(TAG_TEMP) + "\",\"" + String(temp, 1) + "\",\"" + String(MODEL_BME280) + "\"]";
+      readingTags += ",[\"" + String(TAG_HUMIDITY) + "\",\"" + String(humidity, 1) + "\",\"" + String(MODEL_BME280) + "\"]";
+      readingTags += ",[\"" + String(TAG_PRESSURE) + "\",\"" + String(p, 1) + "\",\"" + String(MODEL_BME280) + "\"]";
+    } else if (bmpAvailable) {
+      // BMP280 has temp and pressure only (no humidity)
+      readingTags += ",[\"" + String(TAG_TEMP) + "\",\"" + String(temp, 1) + "\",\"" + String(MODEL_BMP280) + "\"]";
+      readingTags += ",[\"" + String(TAG_PRESSURE) + "\",\"" + String(p, 1) + "\",\"" + String(MODEL_BMP280) + "\"]";
+    }
   #endif
   
   #if ENABLE_PMS
@@ -727,10 +754,32 @@ String createMetadataEvent() {
   metadataTags += ",[\"power\",\"" + String(stationPower) + "\"]";
   metadataTags += ",[\"connectivity\",\"" + String(stationConnectivity) + "\"]";
   
-  // Add sensor capabilities with models
-  for (int i = 0; i < sensorCount; i++) {
-    metadataTags += ",[\"sensor\",\"" + String(sensors[i].type) + "\",\"" + String(sensors[i].model) + "\"]";
-  }
+  // Add sensor capabilities with models (dynamically based on what's detected)
+  #if ENABLE_DHT
+    metadataTags += ",[\"sensor\",\"" + String(TAG_TEMP) + "\",\"" + String(MODEL_DHT11) + "\"]";
+    metadataTags += ",[\"sensor\",\"" + String(TAG_HUMIDITY) + "\",\"" + String(MODEL_DHT11) + "\"]";
+  #endif
+  
+  #if ENABLE_BME280
+    if (bmeAvailable) {
+      metadataTags += ",[\"sensor\",\"" + String(TAG_TEMP) + "\",\"" + String(MODEL_BME280) + "\"]";
+      metadataTags += ",[\"sensor\",\"" + String(TAG_HUMIDITY) + "\",\"" + String(MODEL_BME280) + "\"]";
+      metadataTags += ",[\"sensor\",\"" + String(TAG_PRESSURE) + "\",\"" + String(MODEL_BME280) + "\"]";
+    } else if (bmpAvailable) {
+      metadataTags += ",[\"sensor\",\"" + String(TAG_TEMP) + "\",\"" + String(MODEL_BMP280) + "\"]";
+      metadataTags += ",[\"sensor\",\"" + String(TAG_PRESSURE) + "\",\"" + String(MODEL_BMP280) + "\"]";
+    }
+  #endif
+  
+  #if ENABLE_PMS
+    metadataTags += ",[\"sensor\",\"" + String(TAG_PM1) + "\",\"" + String(PMS_MODEL) + "\"]";
+    metadataTags += ",[\"sensor\",\"" + String(TAG_PM25) + "\",\"" + String(PMS_MODEL) + "\"]";
+    metadataTags += ",[\"sensor\",\"" + String(TAG_PM10) + "\",\"" + String(PMS_MODEL) + "\"]";
+  #endif
+  
+  #if ENABLE_MQ
+    metadataTags += ",[\"sensor\",\"" + String(TAG_AIR_QUALITY) + "\",\"" + String(MODEL_MQ135) + "\"]";
+  #endif
   
   metadataTags += "]";
   
