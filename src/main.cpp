@@ -1,5 +1,11 @@
 #include <Arduino.h>
 
+// Include station-specific secrets FIRST (defines sensor flags)
+#ifndef SECRETS_FILE
+  #error "SECRETS_FILE must be defined! Use -DSECRETS_FILE=\"secrets_stationX.h\" in platformio.ini"
+#endif
+#include SECRETS_FILE
+
 // Board-specific includes
 #ifdef ESP32
   #include <WiFi.h>
@@ -20,6 +26,9 @@
   #include <Adafruit_BME280.h>
   #include <Adafruit_BMP280.h>
 #endif
+#if ENABLE_BH1750
+  #include <BH1750.h>
+#endif
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include <WebSocketsClient.h>
@@ -31,12 +40,6 @@
   #include <bearssl/bearssl_hash.h>
   #include "uECC.h"
 #endif
-
-// Include station-specific secrets (must be defined by build flag)
-#ifndef SECRETS_FILE
-  #error "SECRETS_FILE must be defined! Use -DSECRETS_FILE=\"secrets_stationX.h\" in platformio.ini"
-#endif
-#include SECRETS_FILE
 
 // secp256k1 curve order n
 static const uint8_t SECP256K1_ORDER[32] = {
@@ -96,9 +99,13 @@ const char* MODEL_BMP280 = "BMP280";
 const char* MODEL_PMS5003 = "PMS5003";
 const char* MODEL_PMS7003 = "PMS7003";
 const char* MODEL_MQ135 = "MQ-135";
+const char* MODEL_BH1750 = "BH1750";
+const char* MODEL_MHRD = "MH-RD";
 
-// Nostr tag names for BME280
+// Nostr tag names for additional sensors
 const char* TAG_PRESSURE = "pressure";
+const char* TAG_LIGHT = "light";
+const char* TAG_RAIN = "rain";
 
 // Sensor types available on this station (for metadata)
 struct SensorInfo {
@@ -166,7 +173,22 @@ DHT dht(DHT_PIN, DHTTYPE);
   bool bmpAvailable = false;  // BMP280 = no humidity, just temp+pressure
 #endif
 
+// BH1750 light sensor (I2C)
+#if ENABLE_BH1750
+  BH1750 lightMeter;
+  bool bh1750Available = false;
+#endif
+
+// Rain sensor pin - board-specific
+#ifdef ESP32
+  #define RAIN_PIN 34  // GPIO34 (ADC1_CH6) on ESP32
+#else
+  #define RAIN_PIN A0  // A0 on ESP8266 (shared with MQ if both enabled)
+#endif
+
 float t = 0, h = 0, p = 0;  // temperature, humidity, pressure
+float lux = 0;              // light level
+unsigned int rainValue = 0; // rain sensor (0-4095 on ESP32, 0-1023 on ESP8266)
 
 // MQ sensor analog pin - board-specific
 #ifdef ESP32
@@ -193,6 +215,12 @@ void pmReadData();
 void dhtData();
 #if ENABLE_BME280
 void bmeData();
+#endif
+#if ENABLE_BH1750
+void lightData();
+#endif
+#if ENABLE_RAIN
+void rainData();
 #endif
 void mqReadData();
 void displayOled();
@@ -319,6 +347,12 @@ void setup() {
     Serial.println("DHT sensor disabled");
   #endif
   
+  // Initialize I2C bus for any I2C sensors
+  #if ENABLE_BME280 || ENABLE_BH1750
+    Wire.begin();
+    delay(100);  // Give I2C bus time to stabilize
+  #endif
+
   // Initialize BME280/BMP280 sensor (if enabled)
   #if ENABLE_BME280
     // Try BME280 first (has humidity)
@@ -341,6 +375,26 @@ void setup() {
     }
   #else
     Serial.println("BME280 sensor disabled");
+  #endif
+  
+  // Initialize BH1750 light sensor (if enabled)
+  #if ENABLE_BH1750
+    if (lightMeter.begin(BH1750::CONTINUOUS_HIGH_RES_MODE)) {
+      bh1750Available = true;
+      Serial.println("BH1750 light sensor enabled");
+    } else {
+      Serial.println("BH1750 not found - continuing without it");
+    }
+  #else
+    Serial.println("BH1750 sensor disabled");
+  #endif
+  
+  // Initialize rain sensor (if enabled)
+  #if ENABLE_RAIN
+    pinMode(RAIN_PIN, INPUT);
+    Serial.println("Rain sensor enabled on GPIO34");
+  #else
+    Serial.println("Rain sensor disabled");
   #endif
   
   // Initialize OLED display (if enabled)
@@ -410,6 +464,12 @@ void loop() {
     #if ENABLE_BME280
       bmeData();
     #endif
+    #if ENABLE_BH1750
+      lightData();
+    #endif
+    #if ENABLE_RAIN
+      rainData();
+    #endif
     #if ENABLE_MQ
       mqReadData();
     #endif
@@ -427,6 +487,12 @@ void loop() {
     #endif
     #if ENABLE_BME280
       hasData = hasData || ((bmeAvailable || bmpAvailable) && t > 0);
+    #endif
+    #if ENABLE_BH1750
+      hasData = hasData || (bh1750Available && lux >= 0);
+    #endif
+    #if ENABLE_RAIN
+      hasData = hasData || (rainValue > 0);
     #endif
     #if ENABLE_PMS
       hasData = hasData || (pm2_5 > 0);
@@ -516,6 +582,23 @@ void bmeData() {
     Serial.print("BMP280 - T:"); Serial.print(t,1); 
     Serial.print(" P:"); Serial.print(p,1); Serial.println("hPa");
   }
+}
+#endif
+
+#if ENABLE_BH1750
+void lightData() {
+  if (!bh1750Available) return;
+  
+  lux = lightMeter.readLightLevel();
+  Serial.print("Light: "); Serial.print(lux); Serial.println(" lux");
+}
+#endif
+
+#if ENABLE_RAIN
+void rainData() {
+  rainValue = analogRead(RAIN_PIN);
+  // Note: Higher value = drier, Lower value = more water
+  Serial.print("Rain sensor: "); Serial.println(rainValue);
 }
 #endif
 
@@ -705,6 +788,16 @@ String createAndSignNostrEvent(float temp, float humidity, unsigned int pm1_val,
     }
   #endif
   
+  #if ENABLE_BH1750
+    if (bh1750Available) {
+      readingTags += ",[\"" + String(TAG_LIGHT) + "\",\"" + String(lux, 1) + "\",\"" + String(MODEL_BH1750) + "\"]";
+    }
+  #endif
+  
+  #if ENABLE_RAIN
+    readingTags += ",[\"" + String(TAG_RAIN) + "\",\"" + String(rainValue) + "\",\"" + String(MODEL_MHRD) + "\"]";
+  #endif
+  
   #if ENABLE_PMS
     readingTags += ",[\"" + String(TAG_PM1) + "\",\"" + String(pm1_val) + "\",\"" + String(PMS_MODEL) + "\"]";
     readingTags += ",[\"" + String(TAG_PM25) + "\",\"" + String(pm25_val) + "\",\"" + String(PMS_MODEL) + "\"]";
@@ -777,6 +870,16 @@ String createMetadataEvent() {
       metadataTags += ",[\"sensor\",\"" + String(TAG_TEMP) + "\",\"" + String(MODEL_BMP280) + "\"]";
       metadataTags += ",[\"sensor\",\"" + String(TAG_PRESSURE) + "\",\"" + String(MODEL_BMP280) + "\"]";
     }
+  #endif
+  
+  #if ENABLE_BH1750
+    if (bh1750Available) {
+      metadataTags += ",[\"sensor\",\"" + String(TAG_LIGHT) + "\",\"" + String(MODEL_BH1750) + "\"]";
+    }
+  #endif
+  
+  #if ENABLE_RAIN
+    metadataTags += ",[\"sensor\",\"" + String(TAG_RAIN) + "\",\"" + String(MODEL_MHRD) + "\"]";
   #endif
   
   #if ENABLE_PMS
