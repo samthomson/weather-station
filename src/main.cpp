@@ -76,6 +76,7 @@ const uint16_t nostrRelayPort = 443;
 const char* nostrRelayPath = "/";
 const char* nostrPrivateKeyHex = NOSTR_PRIVKEY;
 const char* stationName = STATION_NAME;
+const char* stationDescription = STATION_DESCRIPTION;
 const char* stationGeohash = STATION_GEOHASH;
 const char* stationElevation = STATION_ELEVATION;
 const char* stationPower = STATION_POWER;
@@ -840,6 +841,11 @@ String createMetadataEvent() {
   // Build tags array for metadata
   String metadataTags = "[";
   metadataTags += "[\"name\",\"" + String(stationName) + "\"]";
+  
+  // Add description if provided
+  if (strlen(stationDescription) > 0) {
+    metadataTags += ",[\"description\",\"" + String(stationDescription) + "\"]";
+  }
   
   // Add geohash location (NIP-52)
   if (strlen(stationGeohash) > 0) {

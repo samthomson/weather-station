@@ -129,7 +129,6 @@ Each tag: `[sensor_type, value, model]`
 - [ ] automated tests
 - [ ] web dashboard
 - [ ] more modular readings
-- [ ] once a minute is ample
 - [ ] MVP
   - [ ] daylight
   - [ ] rain
