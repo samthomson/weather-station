@@ -16,6 +16,7 @@
 #include <ArduinoJson.h>
 #include "DHT.h"
 #include <Wire.h>
+#include <Adafruit_BME280.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include <WebSocketsClient.h>
@@ -87,9 +88,13 @@ const char* HASHTAG_WEATHER = "weather";
 
 // Sensor models
 const char* MODEL_DHT11 = "DHT11";
+const char* MODEL_BME280 = "BME280";
 const char* MODEL_PMS5003 = "PMS5003";
 const char* MODEL_PMS7003 = "PMS7003";
 const char* MODEL_MQ135 = "MQ-135";
+
+// Nostr tag names for BME280
+const char* TAG_PRESSURE = "pressure";
 
 // Sensor types available on this station (for metadata)
 struct SensorInfo {
@@ -107,6 +112,11 @@ const SensorInfo sensors[] = {
   #if ENABLE_DHT
     {TAG_TEMP, MODEL_DHT11},
     {TAG_HUMIDITY, MODEL_DHT11},
+  #endif
+  #if ENABLE_BME280
+    {TAG_TEMP, MODEL_BME280},
+    {TAG_HUMIDITY, MODEL_BME280},
+    {TAG_PRESSURE, MODEL_BME280},
   #endif
   #if ENABLE_PMS
     {TAG_PM1, PMS_MODEL},
@@ -140,7 +150,11 @@ unsigned int pm1 = 0, pm2_5 = 0, pm10 = 0;
 #endif
 DHT dht(DHT_PIN, DHTTYPE);
 
-float t = 0, h = 0;
+// BME280 sensor (I2C)
+Adafruit_BME280 bme;
+bool bmeAvailable = false;
+
+float t = 0, h = 0, p = 0;  // temperature, humidity, pressure
 
 // MQ sensor analog pin - board-specific
 #ifdef ESP32
@@ -165,6 +179,7 @@ void setupNostrRelay();
 void webSocketEvent(WStype_t type, uint8_t* payload, size_t length);
 void pmReadData();
 void dhtData();
+void bmeData();
 void mqReadData();
 void displayOled();
 void derivePubkey();
@@ -290,6 +305,25 @@ void setup() {
     Serial.println("DHT sensor disabled");
   #endif
   
+  // Initialize BME280 sensor (if enabled)
+  #if ENABLE_BME280
+    if (!bme.begin(0x76)) {
+      // Try alternate address
+      if (!bme.begin(0x77)) {
+        Serial.println("BME280 not found - continuing without it");
+        bmeAvailable = false;
+      } else {
+        bmeAvailable = true;
+        Serial.println("BME280 enabled (addr 0x77)");
+      }
+    } else {
+      bmeAvailable = true;
+      Serial.println("BME280 enabled (addr 0x76)");
+    }
+  #else
+    Serial.println("BME280 sensor disabled");
+  #endif
+  
   // Initialize OLED display (if enabled)
   #if ENABLE_OLED
     if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
@@ -354,6 +388,9 @@ void loop() {
     #if ENABLE_DHT
       dhtData();
     #endif
+    #if ENABLE_BME280
+      bmeData();
+    #endif
     #if ENABLE_MQ
       mqReadData();
     #endif
@@ -368,6 +405,9 @@ void loop() {
     bool hasData = false;
     #if ENABLE_DHT
       hasData = hasData || (t > 0);
+    #endif
+    #if ENABLE_BME280
+      hasData = hasData || (bmeAvailable && t > 0);
     #endif
     #if ENABLE_PMS
       hasData = hasData || (pm2_5 > 0);
@@ -437,6 +477,18 @@ void dhtData() {
   if (!isnan(t)) {
     Serial.print("T:"); Serial.print(t,1); Serial.print(" H:"); Serial.println(h,1);
   }
+}
+
+void bmeData() {
+  if (!bmeAvailable) return;
+  
+  t = bme.readTemperature();
+  h = bme.readHumidity();
+  p = bme.readPressure() / 100.0F;  // Convert Pa to hPa
+  
+  Serial.print("BME280 - T:"); Serial.print(t,1); 
+  Serial.print(" H:"); Serial.print(h,1);
+  Serial.print(" P:"); Serial.print(p,1); Serial.println("hPa");
 }
 
 void mqReadData() {
@@ -610,6 +662,12 @@ String createAndSignNostrEvent(float temp, float humidity, unsigned int pm1_val,
   #if ENABLE_DHT
     readingTags += ",[\"" + String(TAG_TEMP) + "\",\"" + String(temp, 1) + "\",\"" + String(MODEL_DHT11) + "\"]";
     readingTags += ",[\"" + String(TAG_HUMIDITY) + "\",\"" + String(humidity, 1) + "\",\"" + String(MODEL_DHT11) + "\"]";
+  #endif
+  
+  #if ENABLE_BME280
+    readingTags += ",[\"" + String(TAG_TEMP) + "\",\"" + String(temp, 1) + "\",\"" + String(MODEL_BME280) + "\"]";
+    readingTags += ",[\"" + String(TAG_HUMIDITY) + "\",\"" + String(humidity, 1) + "\",\"" + String(MODEL_BME280) + "\"]";
+    readingTags += ",[\"" + String(TAG_PRESSURE) + "\",\"" + String(p, 1) + "\",\"" + String(MODEL_BME280) + "\"]";
   #endif
   
   #if ENABLE_PMS
