@@ -135,3 +135,9 @@ Each tag: `[sensor_type, value, model]`
   - [ ] air pollution
   - [ ] temperature / humidity
   - [ ] pressure
+- [ ] geohash tag for the weather station event per geohash level (https://github.com/nostr-protocol/nips/pull/2163#discussion_r2653978414)
+- [ ] faulty sensor/data. omit the sensor reading in the 4223 reading, and mark the sensor as 418 in 16158
+- [ ] document that its a string 9https://github.com/nostr-protocol/nips/pull/2163#discussion_r2653971649)
+- [ ] nip31 alt tag (for each event?) https://github.com/nostr-protocol/nips/pull/2163#issuecomment-3693704646
+- [ ] add `"observed_at": <unix timestamp in seconds>` for each 16158.
+- [ ] expand past weather to general environmental data (eg soil acidity, soil moisture, etc). think of a more inclusive name. maybe terrametry (telemetry, but earth scoped)
