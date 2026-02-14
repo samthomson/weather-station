@@ -156,6 +156,7 @@ const int sensorCount = sizeof(sensors) / sizeof(sensors[0]);
 #endif
 
 unsigned int pm1 = 0, pm2_5 = 0, pm10 = 0;
+bool pmDataReceived = false;  // set on first valid PM frame; omit PM reading tags until then (NIP)
 
 // DHT sensor pin - board-specific
 #define DHTTYPE DHT11
@@ -234,6 +235,74 @@ bool schnorrSign(const uint8_t* privkey, const uint8_t* msg, uint8_t* sig);
 String createAndSignNostrEvent(float temp, float humidity, unsigned int pm1_val, unsigned int pm25_val, unsigned int pm10_val, unsigned int aq_val);
 String createMetadataEvent();
 void sendMetadataEvent();
+
+// --- Tag builders (Nostr reading + metadata tags) ---
+static void appendReadingTag(String& dest, const char* type, const char* model, float value) {
+  dest += ",[\""; dest += type; dest += "\",\""; dest += String(value, 1); dest += "\",\""; dest += model; dest += "\"]";
+}
+static void appendReadingTag(String& dest, const char* type, const char* model, unsigned int value) {
+  dest += ",[\""; dest += type; dest += "\",\""; dest += String(value); dest += "\",\""; dest += model; dest += "\"]";
+}
+static void appendSensorTag(String& dest, const char* type, const char* model) {
+  dest += ",[\"sensor\",\""; dest += type; dest += "\",\""; dest += model; dest += "\"]";
+}
+static void appendSensorStatusTag(String& dest, const char* type, const char* model, bool ok) {
+  dest += ",[\"sensor_status\",\""; dest += type; dest += "\",\""; dest += model; dest += "\",\""; dest += (ok ? "ok" : "418"); dest += "\"]";
+}
+// One (type, model) → always add sensor tag + sensor_status(ok). Use for DHT, BH1750, Rain, PMS, MQ.
+static void appendSensorAndStatus(String& dest, const char* type, const char* model, bool ok) {
+  appendSensorTag(dest, type, model);
+  appendSensorStatusTag(dest, type, model, ok);
+}
+
+// --- Per-sensor validation (NIP: omit reading / status 418 when invalid) ---
+// Each sensor type has one validator. Rain/MQ have no fault detection, so we always pass true for them.
+#if ENABLE_DHT
+static bool dhtValid() { return !isnan(t) && !isnan(h); }
+#endif
+#if ENABLE_BME280
+static bool bme280Valid() { return bmeAvailable || bmpAvailable; }
+#endif
+#if ENABLE_PMS
+static bool pmsValid() { return pmDataReceived; }  // set on first valid frame; omit PM tags until then (NIP)
+#endif
+#if ENABLE_BH1750
+static bool bh1750Valid() { return bh1750Available; }
+#endif
+
+// BME280 (temp+humidity+pressure) vs BMP280 (temp+pressure only) — one helper, two model names
+#if ENABLE_BME280
+static void appendPressureSensorReadingTags(String& dest, const char* model, bool includeHumidity) {
+  appendReadingTag(dest, TAG_TEMP, model, t);
+  if (includeHumidity) appendReadingTag(dest, TAG_HUMIDITY, model, h);
+  appendReadingTag(dest, TAG_PRESSURE, model, p);
+}
+static void appendPressureSensorMetadataTags(String& dest, const char* model, bool includeHumidity, bool ok) {
+  if (ok) {
+    appendSensorTag(dest, TAG_TEMP, model);
+    if (includeHumidity) appendSensorTag(dest, TAG_HUMIDITY, model);
+    appendSensorTag(dest, TAG_PRESSURE, model);
+  }
+  appendSensorStatusTag(dest, TAG_TEMP, model, ok);
+  if (includeHumidity) appendSensorStatusTag(dest, TAG_HUMIDITY, model, ok);
+  appendSensorStatusTag(dest, TAG_PRESSURE, model, ok);
+}
+#endif
+#if ENABLE_DHT
+static void appendDhtReadingTags(String& dest) {
+  if (!dhtValid()) return;
+  appendReadingTag(dest, TAG_TEMP, MODEL_DHT11, t);
+  appendReadingTag(dest, TAG_HUMIDITY, MODEL_DHT11, h);
+}
+#endif
+#if ENABLE_PMS
+static void appendPmReadingTags(String& dest) {
+  if (!pmsValid()) return;
+  appendReadingTag(dest, TAG_PM1, PMS_MODEL, pm1);
+  appendReadingTag(dest, TAG_PM25, PMS_MODEL, pm2_5);
+  appendReadingTag(dest, TAG_PM10, PMS_MODEL, pm10);
+}
+#endif
 
 // 256-bit big number operations (big-endian)
 int bn_compare(const uint8_t* a, const uint8_t* b) {
@@ -550,7 +619,10 @@ void pmReadData() {
     if (index == 4 || index == 6 || index == 8) prev = value;
     else if (index == 5) pm1 = 256 * prev + value;
     else if (index == 7) pm2_5 = 256 * prev + value;
-    else if (index == 9) pm10 = 256 * prev + value;
+    else if (index == 9) {
+      pm10 = 256 * prev + value;
+      pmDataReceived = true;  // valid frame received
+    }
     else if (index > 15) break;
     index++;
   }
@@ -770,43 +842,25 @@ String createAndSignNostrEvent(float temp, float humidity, unsigned int pm1_val,
   readingTags += "[\"" + String(TAG_HASHTAG) + "\",\"" + String(HASHTAG_WEATHER) + "\"],";
   readingTags += "[\"a\",\"16158:" + nostrPubkey + ":\"]";
   
-  // Add sensor readings only if enabled
+  // Add sensor readings only when valid (NIP: omit tag for missing/broken sensor)
   #if ENABLE_DHT
-    readingTags += ",[\"" + String(TAG_TEMP) + "\",\"" + String(temp, 1) + "\",\"" + String(MODEL_DHT11) + "\"]";
-    readingTags += ",[\"" + String(TAG_HUMIDITY) + "\",\"" + String(humidity, 1) + "\",\"" + String(MODEL_DHT11) + "\"]";
+    appendDhtReadingTags(readingTags);
   #endif
-  
   #if ENABLE_BME280
-    if (bmeAvailable) {
-      // BME280 has temp, humidity, and pressure
-      readingTags += ",[\"" + String(TAG_TEMP) + "\",\"" + String(temp, 1) + "\",\"" + String(MODEL_BME280) + "\"]";
-      readingTags += ",[\"" + String(TAG_HUMIDITY) + "\",\"" + String(humidity, 1) + "\",\"" + String(MODEL_BME280) + "\"]";
-      readingTags += ",[\"" + String(TAG_PRESSURE) + "\",\"" + String(p, 1) + "\",\"" + String(MODEL_BME280) + "\"]";
-    } else if (bmpAvailable) {
-      // BMP280 has temp and pressure only (no humidity)
-      readingTags += ",[\"" + String(TAG_TEMP) + "\",\"" + String(temp, 1) + "\",\"" + String(MODEL_BMP280) + "\"]";
-      readingTags += ",[\"" + String(TAG_PRESSURE) + "\",\"" + String(p, 1) + "\",\"" + String(MODEL_BMP280) + "\"]";
-    }
+    if (bmeAvailable) appendPressureSensorReadingTags(readingTags, MODEL_BME280, true);
+    else if (bmpAvailable) appendPressureSensorReadingTags(readingTags, MODEL_BMP280, false);
   #endif
-  
   #if ENABLE_BH1750
-    if (bh1750Available) {
-      readingTags += ",[\"" + String(TAG_LIGHT) + "\",\"" + String(lux, 1) + "\",\"" + String(MODEL_BH1750) + "\"]";
-    }
+    if (bh1750Valid()) appendReadingTag(readingTags, TAG_LIGHT, MODEL_BH1750, lux);
   #endif
-  
   #if ENABLE_RAIN
-    readingTags += ",[\"" + String(TAG_RAIN) + "\",\"" + String(rainValue) + "\",\"" + String(MODEL_MHRD) + "\"]";
+    appendReadingTag(readingTags, TAG_RAIN, MODEL_MHRD, (unsigned int)rainValue);
   #endif
-  
   #if ENABLE_PMS
-    readingTags += ",[\"" + String(TAG_PM1) + "\",\"" + String(pm1_val) + "\",\"" + String(PMS_MODEL) + "\"]";
-    readingTags += ",[\"" + String(TAG_PM25) + "\",\"" + String(pm25_val) + "\",\"" + String(PMS_MODEL) + "\"]";
-    readingTags += ",[\"" + String(TAG_PM10) + "\",\"" + String(pm10_val) + "\",\"" + String(PMS_MODEL) + "\"]";
+    appendPmReadingTags(readingTags);
   #endif
-  
   #if ENABLE_MQ
-    readingTags += ",[\"" + String(TAG_AIR_QUALITY) + "\",\"" + String(aq_val) + "\",\"" + String(MODEL_MQ135) + "\"]";
+    appendReadingTag(readingTags, TAG_AIR_QUALITY, MODEL_MQ135, aq_val);
   #endif
   
   readingTags += "]";
@@ -861,41 +915,29 @@ String createMetadataEvent() {
   metadataTags += ",[\"power\",\"" + String(stationPower) + "\"]";
   metadataTags += ",[\"connectivity\",\"" + String(stationConnectivity) + "\"]";
   
-  // Add sensor capabilities with models (dynamically based on what's detected)
+  // Sensor capability + status (NIP: sensor tag + sensor_status ok/418)
   #if ENABLE_DHT
-    metadataTags += ",[\"sensor\",\"" + String(TAG_TEMP) + "\",\"" + String(MODEL_DHT11) + "\"]";
-    metadataTags += ",[\"sensor\",\"" + String(TAG_HUMIDITY) + "\",\"" + String(MODEL_DHT11) + "\"]";
+    appendSensorAndStatus(metadataTags, TAG_TEMP, MODEL_DHT11, dhtValid());
+    appendSensorAndStatus(metadataTags, TAG_HUMIDITY, MODEL_DHT11, dhtValid());
   #endif
-  
   #if ENABLE_BME280
-    if (bmeAvailable) {
-      metadataTags += ",[\"sensor\",\"" + String(TAG_TEMP) + "\",\"" + String(MODEL_BME280) + "\"]";
-      metadataTags += ",[\"sensor\",\"" + String(TAG_HUMIDITY) + "\",\"" + String(MODEL_BME280) + "\"]";
-      metadataTags += ",[\"sensor\",\"" + String(TAG_PRESSURE) + "\",\"" + String(MODEL_BME280) + "\"]";
-    } else if (bmpAvailable) {
-      metadataTags += ",[\"sensor\",\"" + String(TAG_TEMP) + "\",\"" + String(MODEL_BMP280) + "\"]";
-      metadataTags += ",[\"sensor\",\"" + String(TAG_PRESSURE) + "\",\"" + String(MODEL_BMP280) + "\"]";
-    }
+    if (bmeAvailable) appendPressureSensorMetadataTags(metadataTags, MODEL_BME280, true, true);
+    else if (bmpAvailable) appendPressureSensorMetadataTags(metadataTags, MODEL_BMP280, false, true);
+    else appendPressureSensorMetadataTags(metadataTags, MODEL_BME280, true, false);  // 418
   #endif
-  
   #if ENABLE_BH1750
-    if (bh1750Available) {
-      metadataTags += ",[\"sensor\",\"" + String(TAG_LIGHT) + "\",\"" + String(MODEL_BH1750) + "\"]";
-    }
+    appendSensorAndStatus(metadataTags, TAG_LIGHT, MODEL_BH1750, bh1750Valid());
   #endif
-  
   #if ENABLE_RAIN
-    metadataTags += ",[\"sensor\",\"" + String(TAG_RAIN) + "\",\"" + String(MODEL_MHRD) + "\"]";
+    appendSensorAndStatus(metadataTags, TAG_RAIN, MODEL_MHRD, true);
   #endif
-  
   #if ENABLE_PMS
-    metadataTags += ",[\"sensor\",\"" + String(TAG_PM1) + "\",\"" + String(PMS_MODEL) + "\"]";
-    metadataTags += ",[\"sensor\",\"" + String(TAG_PM25) + "\",\"" + String(PMS_MODEL) + "\"]";
-    metadataTags += ",[\"sensor\",\"" + String(TAG_PM10) + "\",\"" + String(PMS_MODEL) + "\"]";
+    appendSensorAndStatus(metadataTags, TAG_PM1, PMS_MODEL, pmsValid());
+    appendSensorAndStatus(metadataTags, TAG_PM25, PMS_MODEL, pmsValid());
+    appendSensorAndStatus(metadataTags, TAG_PM10, PMS_MODEL, pmsValid());
   #endif
-  
   #if ENABLE_MQ
-    metadataTags += ",[\"sensor\",\"" + String(TAG_AIR_QUALITY) + "\",\"" + String(MODEL_MQ135) + "\"]";
+    appendSensorAndStatus(metadataTags, TAG_AIR_QUALITY, MODEL_MQ135, true);
   #endif
   
   metadataTags += "]";
