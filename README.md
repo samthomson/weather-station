@@ -126,6 +126,7 @@ Each tag: `[sensor_type, value, model]`
 ```
 
 ## todo
+
 - [ ] automated tests
 - [ ] web dashboard
 - [ ] more modular readings
