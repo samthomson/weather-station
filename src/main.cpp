@@ -20,7 +20,9 @@
 
 #include <time.h>
 #include <ArduinoJson.h>
-#include "DHT.h"
+#if ENABLE_DHT
+  #include "DHT.h"
+#endif
 #include <Wire.h>
 #if ENABLE_BME280
   #include <Adafruit_BME280.h>
@@ -28,6 +30,12 @@
 #endif
 #if ENABLE_BH1750
   #include <BH1750.h>
+#endif
+#if ENABLE_SPS30
+  #include <SensirionI2cSps30.h>
+#endif
+#if ENABLE_SDS011
+  #include <SdsDustSensor.h>
 #endif
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
@@ -99,6 +107,8 @@ const char* MODEL_BME280 = "BME280";
 const char* MODEL_BMP280 = "BMP280";
 const char* MODEL_PMS5003 = "PMS5003";
 const char* MODEL_PMS7003 = "PMS7003";
+const char* MODEL_SPS30 = "SPS30";
+const char* MODEL_SDS011 = "SDS011";
 const char* MODEL_MQ135 = "MQ-135";
 const char* MODEL_BH1750 = "BH1750";
 const char* MODEL_MHRD = "MH-RD";
@@ -139,6 +149,15 @@ const SensorInfo sensors[] = {
     {TAG_PM25, PMS_MODEL},
     {TAG_PM10, PMS_MODEL},
   #endif
+  #if ENABLE_SPS30
+    {TAG_PM1, MODEL_SPS30},
+    {TAG_PM25, MODEL_SPS30},
+    {TAG_PM10, MODEL_SPS30},
+  #endif
+  #if ENABLE_SDS011
+    {TAG_PM25, MODEL_SDS011},
+    {TAG_PM10, MODEL_SDS011},
+  #endif
   #if ENABLE_MQ
     {TAG_AIR_QUALITY, MODEL_MQ135},
   #endif
@@ -146,7 +165,7 @@ const SensorInfo sensors[] = {
 
 const int sensorCount = sizeof(sensors) / sizeof(sensors[0]);
 
-// PM sensor serial port - board-specific
+// PM sensor serial port - board-specific (PMS5003/PMS7003 and SDS011)
 #ifdef ESP32
   HardwareSerial pmsSerial(2);  // ESP32 UART2
   #define PMS_SERIAL pmsSerial
@@ -158,14 +177,25 @@ const int sensorCount = sizeof(sensors) / sizeof(sensors[0]);
 unsigned int pm1 = 0, pm2_5 = 0, pm10 = 0;
 bool pmDataReceived = false;  // set on first valid PM frame; omit PM reading tags until then (NIP)
 
-// DHT sensor pin - board-specific
-#define DHTTYPE DHT11
-#ifdef ESP32
-  #define DHT_PIN 4  // GPIO4 on ESP32
-#else
-  #define DHT_PIN D7  // D7 on ESP8266
+#if ENABLE_SPS30
+  SensirionI2cSps30 sps30;
+  bool sps30DataReceived = false;
 #endif
-DHT dht(DHT_PIN, DHTTYPE);
+#if ENABLE_SDS011
+  SdsDustSensor sds011(PMS_SERIAL);  // Uses same UART2 on ESP32 (RX=16, TX=17)
+  bool sds011DataReceived = false;
+#endif
+
+// DHT sensor pin - board-specific
+#if ENABLE_DHT
+  #define DHTTYPE DHT11
+  #ifdef ESP32
+    #define DHT_PIN 4  // GPIO4 on ESP32
+  #else
+    #define DHT_PIN D7  // D7 on ESP8266
+  #endif
+  DHT dht(DHT_PIN, DHTTYPE);
+#endif
 
 // BME280/BMP280 sensor (I2C)
 #if ENABLE_BME280
@@ -214,6 +244,12 @@ void connectWiFi();
 void setupNostrRelay();
 void webSocketEvent(WStype_t type, uint8_t* payload, size_t length);
 void pmReadData();
+#if ENABLE_SPS30
+void sps30ReadData();
+#endif
+#if ENABLE_SDS011
+void sds011ReadData();
+#endif
 void dhtData();
 #if ENABLE_BME280
 void bmeData();
@@ -266,6 +302,12 @@ static bool bme280Valid() { return bmeAvailable || bmpAvailable; }
 #if ENABLE_PMS
 static bool pmsValid() { return pmDataReceived; }  // set on first valid frame; omit PM tags until then (NIP)
 #endif
+#if ENABLE_SPS30
+static bool sps30Valid() { return sps30DataReceived; }
+#endif
+#if ENABLE_SDS011
+static bool sds011Valid() { return sds011DataReceived; }
+#endif
 #if ENABLE_BH1750
 static bool bh1750Valid() { return bh1750Available; }
 #endif
@@ -295,12 +337,29 @@ static void appendDhtReadingTags(String& dest) {
   appendReadingTag(dest, TAG_HUMIDITY, MODEL_DHT11, h);
 }
 #endif
+// Shared helper: append pm1, pm25, pm10 with given model (used by PMS and SPS30)
+static void appendPmReadingTagsWithModel(String& dest, const char* model, unsigned int v1, unsigned int v25, unsigned int v10) {
+  appendReadingTag(dest, TAG_PM1, model, v1);
+  appendReadingTag(dest, TAG_PM25, model, v25);
+  appendReadingTag(dest, TAG_PM10, model, v10);
+}
 #if ENABLE_PMS
 static void appendPmReadingTags(String& dest) {
   if (!pmsValid()) return;
-  appendReadingTag(dest, TAG_PM1, PMS_MODEL, pm1);
-  appendReadingTag(dest, TAG_PM25, PMS_MODEL, pm2_5);
-  appendReadingTag(dest, TAG_PM10, PMS_MODEL, pm10);
+  appendPmReadingTagsWithModel(dest, PMS_MODEL, pm1, pm2_5, pm10);
+}
+#endif
+#if ENABLE_SPS30
+static void appendSps30ReadingTags(String& dest) {
+  if (!sps30Valid()) return;
+  appendPmReadingTagsWithModel(dest, MODEL_SPS30, pm1, pm2_5, pm10);
+}
+#endif
+#if ENABLE_SDS011
+static void appendSds011ReadingTags(String& dest) {
+  if (!sds011Valid()) return;
+  appendReadingTag(dest, TAG_PM25, MODEL_SDS011, pm2_5);
+  appendReadingTag(dest, TAG_PM10, MODEL_SDS011, pm10);
 }
 #endif
 
@@ -417,10 +476,32 @@ void setup() {
     Serial.println("DHT sensor disabled");
   #endif
   
-  // Initialize I2C bus for any I2C sensors
-  #if ENABLE_BME280 || ENABLE_BH1750
+  // Initialize I2C bus for any I2C sensors or OLED
+  #if ENABLE_BME280 || ENABLE_BH1750 || ENABLE_SPS30 || ENABLE_OLED
     Wire.begin();
     delay(100);  // Give I2C bus time to stabilize
+  #endif
+
+  // Initialize SPS30 (I2C) - SEL pin must be tied to GND for I2C mode
+  #if ENABLE_SPS30
+    if (sps30.begin()) {
+      sps30.startMeasurement();
+      Serial.println("SPS30 enabled (I2C)");
+    } else {
+      Serial.println("SPS30 not found on I2C - check wiring (SEL to GND)");
+    }
+  #endif
+
+  // Initialize SDS011 (UART) - same pins as PMS on ESP32
+  #if ENABLE_SDS011
+    #ifdef ESP32
+      PMS_SERIAL.begin(9600, SERIAL_8N1, 16, 17);  // RX=GPIO16, TX=GPIO17
+    #else
+      PMS_SERIAL.begin(9600);
+    #endif
+    sds011.begin();
+    sds011.setActiveReportingMode();
+    Serial.println("SDS011 enabled (UART)");
   #endif
 
   // Initialize BME280/BMP280 sensor (if enabled)
@@ -528,6 +609,12 @@ void loop() {
     #if ENABLE_PMS
       pmReadData();
     #endif
+    #if ENABLE_SPS30
+      sps30ReadData();
+    #endif
+    #if ENABLE_SDS011
+      sds011ReadData();
+    #endif
     #if ENABLE_DHT
       dhtData();
     #endif
@@ -567,7 +654,13 @@ void loop() {
     #if ENABLE_PMS
       hasData = hasData || (pm2_5 > 0);
     #endif
-    
+    #if ENABLE_SPS30
+      hasData = hasData || sps30DataReceived;
+    #endif
+    #if ENABLE_SDS011
+      hasData = hasData || sds011DataReceived;
+    #endif
+
     if (wsConnected && (hasData || !ENABLE_DHT)) {  // Send if we have data OR if DHT is disabled
       // Send reading event with all sensor data in tags
       String event = createAndSignNostrEvent(t, h, pm1, pm2_5, pm10, airQuality);
@@ -629,6 +722,36 @@ void pmReadData() {
   while(PMS_SERIAL.available()) PMS_SERIAL.read();
 }
 
+#if ENABLE_SPS30
+void sps30ReadData() {
+  uint16_t mc1p0, mc2p5, mc10p0;
+  uint16_t nc0p5, nc1p0, nc2p5, nc4p0, nc10p0;
+  uint16_t typical;
+  int16_t err = sps30.readMeasurementData(mc1p0, mc2p5, mc10p0, nc0p5, nc1p0, nc2p5, nc4p0, nc10p0, typical);
+  if (err == 0) {
+    pm1 = (unsigned int)mc1p0;
+    pm2_5 = (unsigned int)mc2p5;
+    pm10 = (unsigned int)mc10p0;
+    sps30DataReceived = true;
+    Serial.print("SPS30 PM1:"); Serial.print(pm1); Serial.print(" PM2.5:"); Serial.print(pm2_5); Serial.print(" PM10:"); Serial.println(pm10);
+  }
+}
+#endif
+
+#if ENABLE_SDS011
+void sds011ReadData() {
+  PmResult res = sds011.readPm();
+  if (res.isOk()) {
+    pm1 = 0;  // SDS011 does not report PM1
+    pm2_5 = (unsigned int)(res.pm25 + 0.5f);
+    pm10 = (unsigned int)(res.pm10 + 0.5f);
+    sds011DataReceived = true;
+    Serial.print("SDS011 PM2.5:"); Serial.print(pm2_5); Serial.print(" PM10:"); Serial.println(pm10);
+  }
+}
+#endif
+
+#if ENABLE_DHT
 void dhtData() {
   h = dht.readHumidity();
   t = dht.readTemperature();
@@ -636,6 +759,7 @@ void dhtData() {
     Serial.print("T:"); Serial.print(t,1); Serial.print(" H:"); Serial.println(h,1);
   }
 }
+#endif
 
 #if ENABLE_BME280
 void bmeData() {
@@ -859,6 +983,12 @@ String createAndSignNostrEvent(float temp, float humidity, unsigned int pm1_val,
   #if ENABLE_PMS
     appendPmReadingTags(readingTags);
   #endif
+  #if ENABLE_SPS30
+    appendSps30ReadingTags(readingTags);
+  #endif
+  #if ENABLE_SDS011
+    appendSds011ReadingTags(readingTags);
+  #endif
   #if ENABLE_MQ
     appendReadingTag(readingTags, TAG_AIR_QUALITY, MODEL_MQ135, aq_val);
   #endif
@@ -935,6 +1065,15 @@ String createMetadataEvent() {
     appendSensorAndStatus(metadataTags, TAG_PM1, PMS_MODEL, pmsValid());
     appendSensorAndStatus(metadataTags, TAG_PM25, PMS_MODEL, pmsValid());
     appendSensorAndStatus(metadataTags, TAG_PM10, PMS_MODEL, pmsValid());
+  #endif
+  #if ENABLE_SPS30
+    appendSensorAndStatus(metadataTags, TAG_PM1, MODEL_SPS30, sps30Valid());
+    appendSensorAndStatus(metadataTags, TAG_PM25, MODEL_SPS30, sps30Valid());
+    appendSensorAndStatus(metadataTags, TAG_PM10, MODEL_SPS30, sps30Valid());
+  #endif
+  #if ENABLE_SDS011
+    appendSensorAndStatus(metadataTags, TAG_PM25, MODEL_SDS011, sds011Valid());
+    appendSensorAndStatus(metadataTags, TAG_PM10, MODEL_SDS011, sds011Valid());
   #endif
   #if ENABLE_MQ
     appendSensorAndStatus(metadataTags, TAG_AIR_QUALITY, MODEL_MQ135, true);
