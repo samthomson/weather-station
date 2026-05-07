@@ -38,15 +38,20 @@ OUT = os.path.dirname(os.path.abspath(__file__))
 # =============================================================================
 # Parameters (mm)
 # =============================================================================
-OD              = 120     # outer diameter of every body section
-COL_ID          = 20      # cable column hole diameter
-WALL            = 3       # default wall thickness
-TIER_INNER_H    = 60      # body height per tier
-NECK_H          = 16      # bayonet neck/skirt overlap height
+# Sizing target: a compact weather station ~110mm tall (stack), 60mm body OD,
+# 110mm-wide foot. Big enough to house an ESP32 + a few sensors, small enough
+# to print in a reasonable amount of time. Wall and feature thicknesses are
+# the minimum that print reliably on a typical 0.4mm-nozzle FDM printer.
+
+OD              = 60      # outer diameter of every body section
+COL_ID          = 12      # cable column hole diameter (cables route through here)
+WALL            = 2       # default wall thickness (5 perimeters at 0.4mm nozzle)
+TIER_INNER_H    = 32      # body height per tier
+NECK_H          = 9       # bayonet neck/skirt overlap height
 
 # Foot (the stand)
-FOOT_OD         = 200     # plate diameter (broad for stability)
-FOOT_T          = 8       # plate thickness
+FOOT_OD         = 110     # plate diameter (broad for stability)
+FOOT_T          = 5       # plate thickness
 
 # Bayonet (EXTERNAL design: lugs project OUTWARD from the lower piece's neck;
 # the upper piece's skirt has L-slots cut all the way THROUGH the skirt wall,
@@ -54,81 +59,80 @@ FOOT_T          = 8       # plate thickness
 # slot when locked -- you can literally see it from outside.)
 LUG_COUNT       = 2       # 2 lugs at 0 and 180 degrees
 LUG_W_DEG       = 30      # lug arc width
-LUG_H           = 5       # lug height (z dim)
-LUG_PROJECT     = 5       # radial protrusion of lug from neck outer face
+LUG_H           = 3       # lug height (z dim)
+LUG_PROJECT     = 2.5     # radial protrusion of lug from neck outer face
 TWIST_LOCK_DEG  = 50      # rotation needed to lock
-SKIRT_CLEAR     = 1.0     # radial clearance: skirt_inner - neck_outer
-SLOT_CLEAR      = 0.6     # vertical clearance for the lug in the slot
+SKIRT_CLEAR     = 0.5     # radial clearance: skirt_inner - neck_outer
+SLOT_CLEAR      = 0.4     # vertical clearance for the lug in the slot
+NECK_INSET      = 3       # neck OD = body OD - 2*NECK_INSET (skirt wall thickness)
 
 # Floor (TENT-shape): two slopes meeting at a ridge along the X axis (just
 # like the cap's roof but inverted INSIDE the tier), so any water inside flows
 # down the slopes to TWO drain holes (one on each side, at the low points).
 # Pitch matches the roof (15 deg) for visual consistency.
 FLOOR_PITCH_DEG = 15
-FLOOR_T_RIDGE   = 16      # floor thickness at the ridge (high point, along x axis)
-FLOOR_T_EDGE    = 1.5     # floor thickness at the y-axis (low points, where drains are)
-DRAIN_D         = 6       # diameter of each drain hole through the outer wall
+FLOOR_T_RIDGE   = 9       # floor thickness at the ridge (high point, along x axis)
+FLOOR_T_EDGE    = 1.2     # floor thickness at the y-axis (low points, where drains are)
+DRAIN_D         = 4       # diameter of each drain hole through the outer wall
 
-# Body-to-neck shoulder: the neck (r=51-54) sits inside the body footprint
-# (r=57-60), so without a transition the neck would just float above the body
-# unattached. The top of every body section therefore tapers INWARD from
-# r=BODY_INNER_R (at z = height - SHOULDER_H) to r=NECK_INNER_R (at z = height)
-# so the neck has something to mate with.
-SHOULDER_H      = 5
+# Body-to-neck shoulder: tapers inward from r=BODY_INNER_R at z=height-SHOULDER_H
+# to r=NECK_INNER_R at z=height, so the neck has body material to mate with
+# (otherwise the neck would float above the body wall, unconnected).
+SHOULDER_H      = 3
 
 # Cable slots (through inner column wall) - run along x axis (perpendicular to
 # the y-axis drains and along the floor's ridge)
-CABLE_SLOT_W    = 12
-CABLE_SLOT_H    = 10
+CABLE_SLOT_W    = 7
+CABLE_SLOT_H    = 6
 CABLE_SLOT_COUNT = 2
 
-# ESP32 tier (USB cutout -- intentionally generous so it clears any USB cable)
-USB_W           = 22
-USB_H           = 14
-USB_Z_OFFSET    = 22      # USB centre this far above the inner floor surface
+# ESP32 tier (USB cutout sized for a USB-C plug + cable strain relief)
+USB_W           = 14
+USB_H           = 8
+USB_Z_OFFSET    = 13      # USB centre this far above the inner floor surface
 
 # Louvred wall (REAL Stevenson-screen): 4 vertical posts hold a stack of tilted
 # annular slats. Slats DON'T touch each other -- there are horizontal gaps on
 # BOTH the inner and outer faces, so air can actually pass through. The slats
 # tilt outward-and-down so rain runs off the outer edge and falls clear.
-SLAT_THICKNESS  = 2.5     # vertical (z) thickness of each slat at the inner face
-SLAT_TILT       = 4       # outer edge of slat sits this far below the inner edge
+SLAT_THICKNESS  = 1.6     # vertical (z) thickness of each slat at the inner face
+SLAT_TILT       = 2.5     # outer edge of slat sits this far below the inner edge
 POST_COUNT      = 4       # vertical posts that hold the slats in place
-POST_W_DEG      = 10      # tangential width of each post (in degrees)
-N_SLATS_TARGET  = 9       # target number of slats (pitch is auto-computed)
-LOUVRE_MARGIN_BOT = 6     # height of the bottom plinth (at the inner face)
-LOUVRE_MARGIN_TOP = 6     # height of the top shoulder (at the inner face)
+POST_W_DEG      = 12      # tangential width of each post (in degrees)
+N_SLATS_TARGET  = 6       # target number of slats (pitch is auto-computed)
+LOUVRE_MARGIN_BOT = 4     # height of the bottom plinth (at the inner face)
+LOUVRE_MARGIN_TOP = 4     # height of the top shoulder (at the inner face)
 
 # Cap
-CAP_BODY_H      = 18
+CAP_BODY_H      = 10
 ROOF_PITCH_DEG  = 15
-ROOF_OVERHANG   = 5
+ROOF_OVERHANG   = 3
 
-# Sensor pockets in cap roof
-RAIN_X          = 52
-RAIN_Y          = 38
-RAIN_DEPTH      = 2.5
-RAIN_CABLE_D    = 5
-BH_X            = 22
-BH_Y            = 14
-BH_DEPTH        = 2.5
-BH_CABLE_D      = 4
+# Sensor pockets in cap roof (sized for small breakout boards)
+RAIN_X          = 28
+RAIN_Y          = 20
+RAIN_DEPTH      = 1.5
+RAIN_CABLE_D    = 3
+BH_X            = 12
+BH_Y            = 8
+BH_DEPTH        = 1.5
+BH_CABLE_D      = 2.5
 
 # =============================================================================
 # Derived
 # =============================================================================
-COL_OUTER_R     = COL_ID / 2 + WALL          # 13: outer radius of inner column wall
-BODY_INNER_R    = OD / 2 - WALL              # 57: inner face of body wall
+COL_OUTER_R     = COL_ID / 2 + WALL          # outer radius of inner column wall
+BODY_INNER_R    = OD / 2 - WALL              # inner face of body wall
 
 # Bayonet sizing: the neck is intentionally narrower than the body so the skirt
 # (which is at body OD) has a thick wall around the slot cuts. The lug projects
 # from the neck outer face out to (or just shy of) the skirt outer face, so it
 # pokes visibly THROUGH the slot when the bayonet is locked.
-NECK_R          = OD / 2 - 6                 # 54: outer radius of neck
-NECK_INNER_R    = NECK_R - WALL              # 51: inner radius of neck (3mm wall)
-SKIRT_R_OUT     = OD / 2                     # 60: outer radius of skirt (= body OD)
-SKIRT_R_IN      = NECK_R + SKIRT_CLEAR       # 55: inner radius of skirt (1mm air gap)
-LUG_OUT_R       = NECK_R + LUG_PROJECT       # 59: tip of lug (just shy of skirt OD)
+NECK_R          = OD / 2 - NECK_INSET        # outer radius of neck
+NECK_INNER_R    = NECK_R - WALL              # inner radius of neck
+SKIRT_R_OUT     = OD / 2                     # outer radius of skirt (= body OD)
+SKIRT_R_IN      = NECK_R + SKIRT_CLEAR       # inner radius of skirt
+LUG_OUT_R       = NECK_R + LUG_PROJECT       # tip of lug (just shy of skirt OD)
 
 
 # =============================================================================
@@ -606,5 +610,5 @@ if __name__ == "__main__":
 
     rise = (OD / 2 + ROOF_OVERHANG) * math.tan(math.radians(ROOF_PITCH_DEG))
     total_h = z + CAP_BODY_H + rise
-    print(f"\nDone. Stack (foot + 2 tiers + cap): ~{total_h:.0f} mm tall, "
-          f"{OD} mm OD, {FOOT_OD} mm foot.")
+    print(f"\nDone. Stack (foot + 2 tiers + cap): "
+          f"~{total_h:.0f}mm tall x {OD}mm OD x {FOOT_OD}mm foot")
