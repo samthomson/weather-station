@@ -42,20 +42,20 @@ OUT = os.path.dirname(os.path.abspath(__file__))
 # =============================================================================
 # Parameters (mm)
 # =============================================================================
-# Sizing target: a compact weather station ~110mm tall (stack), 60mm body OD,
-# 110mm-wide foot. Big enough to house an ESP32 + a few sensors, small enough
-# to print in a reasonable amount of time. Wall and feature thicknesses are
-# the minimum that print reliably on a typical 0.4mm-nozzle FDM printer.
+# Full-size weather station: ~210mm tall stack, 120mm body OD, 220mm-wide foot.
+# Walls and the bayonet are sized so the slot pocket leaves ~2mm of wall
+# material outside it (matches the bayonetbox reference's 50% wall-remaining
+# ratio, much more robust than the previous 0.6mm strip).
 
-OD              = 60      # outer diameter of every body section
-COL_ID          = 12      # cable column hole diameter (cables route through here)
-WALL            = 2       # default wall thickness (5 perimeters at 0.4mm nozzle)
-TIER_INNER_H    = 32      # body height per tier
-NECK_H          = 6       # bayonet neck/skirt overlap height
+OD              = 120     # outer diameter of every body section
+COL_ID          = 24      # cable column hole diameter (cables route through here)
+WALL            = 4       # default wall thickness (~10 perimeters at 0.4mm nozzle)
+TIER_INNER_H    = 64      # body height per tier
+NECK_H          = 12      # bayonet neck/skirt overlap height
 
 # Foot (the stand)
-FOOT_OD         = 110     # plate diameter (broad for stability)
-FOOT_T          = 5       # plate thickness
+FOOT_OD         = 220     # plate diameter (broad for stability)
+FOOT_T          = 10      # plate thickness
 
 # Bayonet -- replicates the geometry of the user's reference bayonetbox.3mf:
 # - 4 OUTWARD-projecting lugs on the LOWER piece's neck (90deg spacing)
@@ -66,66 +66,75 @@ FOOT_T          = 5       # plate thickness
 # - L-shaped slots are BLIND POCKETS cut only into the skirt's INNER face.
 #   They do NOT cut through to the outside.
 LUG_COUNT       = 4       # 4 lugs at 0/90/180/270 (matches reference)
-LUG_W_DEG       = 17      # lug arc width (matches reference)
-LUG_H           = 2.5     # lug height (z dim, INCLUDING ramps)
-LUG_PROJECT     = 1.0     # radial protrusion of lug from neck outer face (full)
-LUG_CHAMFER     = 0.5     # height of cam ramps at lug top and bottom; the lug
+LUG_W_DEG       = 17      # lug arc width, in DEGREES (does not scale with size)
+LUG_H           = 5       # lug height (z dim, INCLUDING ramps)
+LUG_PROJECT     = 1.5     # radial protrusion of lug from neck outer face. NOT
+                          # the literal 2x of the previous version - kept lower
+                          # so SLOT_DEPTH can also be lower, leaving more wall
+                          # material outside the slot for robustness.
+LUG_CHAMFER     = 1.0     # height of cam ramps at lug top and bottom; the lug
                           # has a "flat peak" in the middle and tapers to the
                           # neck face at top and bottom over LUG_CHAMFER mm.
 LUG_Z_CENTER_FRAC = 0.5   # lug centered in the neck height (fraction 0..1)
-TWIST_LOCK_DEG  = 25      # rotation needed to fully engage lock
-SKIRT_CLEAR     = 0.2     # radial clearance: skirt_inner - neck_outer (TIGHT)
-SLOT_DEPTH      = 1.2     # how deep the BLIND L-pocket cuts into skirt wall
-                          # (skirt wall is ~1.8mm; this leaves ~0.6mm of outer
-                          # material so the slot does NOT show on the outside)
+TWIST_LOCK_DEG  = 25      # rotation needed to fully engage lock (degrees)
+SKIRT_CLEAR     = 0.2     # radial clearance: skirt_inner - neck_outer (TIGHT,
+                          # FDM-tolerance value, does NOT scale with size)
+SLOT_DEPTH      = 1.9     # how deep the BLIND L-pocket cuts into skirt wall.
+                          # Skirt wall is 3.8mm; this leaves ~1.9mm of outer
+                          # material (50% of wall) -- matches the reference
+                          # bayonetbox proportions and is 3x more material
+                          # than the previous design (which had 0.6mm and was
+                          # cracking). LUG_PROJECT must be < SLOT_DEPTH.
 SLOT_LOCK_W_DEG = 30      # how far the lock arc extends beyond the vert channel
 SLOT_LOCK_H_CLEAR = 0.3   # vertical clearance for the lug in the lock arc
-NECK_INSET      = 2       # neck OD = body OD - 2*NECK_INSET (matches reference's
-                          # 2mm step from body OD to neck OD)
+NECK_INSET      = 4       # neck OD = body OD - 2*NECK_INSET (4mm step matches
+                          # reference's ratio at the doubled scale)
 
 # Floor (TENT-shape): two slopes meeting at a ridge along the X axis (just
 # like the cap's roof but inverted INSIDE the tier), so any water inside flows
 # down the slopes to TWO drain holes (one on each side, at the low points).
 # Pitch matches the roof (15 deg) for visual consistency.
 FLOOR_PITCH_DEG = 15
-FLOOR_T_RIDGE   = 9       # floor thickness at the ridge (high point, along x axis)
-FLOOR_T_EDGE    = 1.2     # floor thickness at the y-axis (low points, where drains are)
-DRAIN_D         = 4       # diameter of each drain hole through the outer wall
+FLOOR_T_RIDGE   = 18      # floor thickness at the ridge (high point, along x axis)
+FLOOR_T_EDGE    = 2.4     # floor thickness at the y-axis (low points, where drains are)
+DRAIN_D         = 8       # diameter of each drain hole through the outer wall
 
 # Body-to-neck shoulder: tapers inward from r=BODY_INNER_R at z=height-SHOULDER_H
 # to r=NECK_INNER_R at z=height, so the neck has body material to mate with
 # (otherwise the neck would float above the body wall, unconnected).
-SHOULDER_H      = 3
+SHOULDER_H      = 6
 
 # Cable slots (through inner column wall) - run along x axis (perpendicular to
 # the y-axis drains and along the floor's ridge)
-CABLE_SLOT_W    = 7
-CABLE_SLOT_H    = 6
+CABLE_SLOT_W    = 14
+CABLE_SLOT_H    = 12
 CABLE_SLOT_COUNT = 2
 
-# ESP32 tier (USB cutout sized for a USB-C plug + cable strain relief)
+# ESP32 tier (USB cutout sized for a USB-C plug + cable strain relief).
+# USB_W/USB_H are physical-connector dimensions and DO NOT scale with the body.
 USB_W           = 14
 USB_H           = 8
-USB_Z_OFFSET    = 13      # USB centre this far above the inner floor surface
+USB_Z_OFFSET    = 26      # USB centre this far above the inner floor surface
 
 # Louvred wall (REAL Stevenson-screen): 4 vertical posts hold a stack of tilted
 # annular slats. Slats DON'T touch each other -- there are horizontal gaps on
 # BOTH the inner and outer faces, so air can actually pass through. The slats
 # tilt outward-and-down so rain runs off the outer edge and falls clear.
-SLAT_THICKNESS  = 1.6     # vertical (z) thickness of each slat at the inner face
-SLAT_TILT       = 2.5     # outer edge of slat sits this far below the inner edge
+SLAT_THICKNESS  = 3.2     # vertical (z) thickness of each slat at the inner face
+SLAT_TILT       = 5       # outer edge of slat sits this far below the inner edge
 POST_COUNT      = 4       # vertical posts that hold the slats in place
-POST_W_DEG      = 12      # tangential width of each post (in degrees)
-N_SLATS_TARGET  = 6       # target number of slats (pitch is auto-computed)
-LOUVRE_MARGIN_BOT = 4     # height of the bottom plinth (at the inner face)
-LOUVRE_MARGIN_TOP = 4     # height of the top shoulder (at the inner face)
+POST_W_DEG      = 12      # tangential width of each post (in degrees, no scale)
+N_SLATS_TARGET  = 8       # target number of slats (pitch is auto-computed)
+LOUVRE_MARGIN_BOT = 8     # height of the bottom plinth (at the inner face)
+LOUVRE_MARGIN_TOP = 8     # height of the top shoulder (at the inner face)
 
 # Cap
-CAP_BODY_H      = 10
+CAP_BODY_H      = 20
 ROOF_PITCH_DEG  = 15
-ROOF_OVERHANG   = 3
+ROOF_OVERHANG   = 6
 
-# Sensor pockets in cap roof (sized for small breakout boards)
+# Sensor pockets in cap roof. These match the physical sensor PCBs and DO NOT
+# scale with the body size.
 RAIN_X          = 28
 RAIN_Y          = 20
 RAIN_DEPTH      = 1.5
@@ -146,15 +155,17 @@ BODY_INNER_R    = OD / 2 - WALL              # inner face of body wall
 # tier's skirt sleeves over the neck, with skirt OD == body OD (flush, smooth
 # outer surface). Lugs project outward from the neck and engage L-pockets that
 # are cut into the skirt's inner face but DO NOT cut through the outer face.
-NECK_R          = OD / 2 - NECK_INSET        # outer radius of neck (=28 at OD=60)
-NECK_INNER_R    = NECK_R - WALL              # inner radius of neck (=26)
-SKIRT_R_OUT     = OD / 2                     # outer radius of skirt (=30, flush w/body)
-SKIRT_R_IN      = NECK_R + SKIRT_CLEAR       # inner radius of skirt (=28.2)
-                                             # -> skirt wall = 1.8mm
-LUG_OUT_R       = NECK_R + LUG_PROJECT       # tip of lug (=29.0)
-SLOT_FLOOR_R    = SKIRT_R_IN + SLOT_DEPTH    # bottom of L-pocket inside the wall (=29.4)
-                                             # -> 0.6mm of skirt wall remains outside
-                                             #    the slot, hiding it from view
+NECK_R          = OD / 2 - NECK_INSET        # outer radius of neck (=56 at OD=120)
+NECK_INNER_R    = NECK_R - WALL              # inner radius of neck (=52)
+SKIRT_R_OUT     = OD / 2                     # outer radius of skirt (=60, flush w/body)
+SKIRT_R_IN      = NECK_R + SKIRT_CLEAR       # inner radius of skirt (=56.2)
+                                             # -> skirt wall = 3.8mm (THICK)
+LUG_OUT_R       = NECK_R + LUG_PROJECT       # tip of lug (=57.5)
+SLOT_FLOOR_R    = SKIRT_R_IN + SLOT_DEPTH    # bottom of L-pocket inside wall (=58.1)
+                                             # -> ~1.9mm of skirt wall remains outside
+                                             #    the slot (50% of wall thickness,
+                                             #    matches reference proportions and
+                                             #    is 3x the previous version's 0.6mm)
 
 
 # =============================================================================
@@ -446,11 +457,11 @@ def make_outer_wall_esp32(height, z_base):
            .box(OD, USB_W, USB_H, centered=(False, True, False))
            .translate((0, 0, usb_z_bot)))
 
-    hood_proj      = 7              # how far the hood projects past the wall (BIGGER)
-    hood_back_h    = 8              # back-edge height above USB top
-    hood_tip_h     = 6              # tip height above USB top (45 deg under-side)
-    hood_width     = USB_W + 12     # wider than USB hole on each side
-    hood_lip       = 1.5            # how far the front lip drops below USB top
+    hood_proj      = 12             # how far the hood projects past the wall
+    hood_back_h    = 14             # back-edge height above USB top
+    hood_tip_h     = 10             # tip height above USB top (45 deg under-side)
+    hood_width     = USB_W + 16     # wider than USB hole on each side
+    hood_lip       = 2.5            # how far the front lip drops below USB top
     x_back         = OD / 2 - 1     # 1mm overlap into wall for solid union
     x_front        = OD / 2 + hood_proj
 
