@@ -10,8 +10,12 @@ Foot:     just a wide thick plate with a bayonet neck on top. That is all.
 Tier:     cylindrical donut. Inner column (cable shaft) + outer wall +
           tent-shaped floor (two slopes meeting at a ridge along the X axis,
           like an inverted roof) with two drain holes at the y-axis low points.
-          Bayonet skirt below, bayonet neck above. The neck is connected to
-          the body via an inward-tapered shoulder (so it isn't floating).
+          Bayonet skirt below (sleeves over the lower piece's neck, with
+          BLIND L-shaped pockets carved into its inner face -- outer face is
+          smooth, flush with body OD), bayonet neck above (steps inward by
+          NECK_INSET, with 4 outward-projecting cammed lugs at 90deg spacing).
+          The neck is connected to the body via an inward-tapered shoulder
+          (so it isn't floating).
           Outer wall comes in three flavours:
             solid    closed cylinder
             louvred  Stevenson-screen: tilted annular slats held by 4 vertical
@@ -47,24 +51,37 @@ OD              = 60      # outer diameter of every body section
 COL_ID          = 12      # cable column hole diameter (cables route through here)
 WALL            = 2       # default wall thickness (5 perimeters at 0.4mm nozzle)
 TIER_INNER_H    = 32      # body height per tier
-NECK_H          = 9       # bayonet neck/skirt overlap height
+NECK_H          = 6       # bayonet neck/skirt overlap height
 
 # Foot (the stand)
 FOOT_OD         = 110     # plate diameter (broad for stability)
 FOOT_T          = 5       # plate thickness
 
-# Bayonet (EXTERNAL design: lugs project OUTWARD from the lower piece's neck;
-# the upper piece's skirt has L-slots cut all the way THROUGH the skirt wall,
-# so both features are visible from outside, and the lug pokes through the
-# slot when locked -- you can literally see it from outside.)
-LUG_COUNT       = 2       # 2 lugs at 0 and 180 degrees
-LUG_W_DEG       = 30      # lug arc width
-LUG_H           = 3       # lug height (z dim)
-LUG_PROJECT     = 2.5     # radial protrusion of lug from neck outer face
-TWIST_LOCK_DEG  = 50      # rotation needed to lock
-SKIRT_CLEAR     = 0.5     # radial clearance: skirt_inner - neck_outer
-SLOT_CLEAR      = 0.4     # vertical clearance for the lug in the slot
-NECK_INSET      = 3       # neck OD = body OD - 2*NECK_INSET (skirt wall thickness)
+# Bayonet -- replicates the geometry of the user's reference bayonetbox.3mf:
+# - 4 OUTWARD-projecting lugs on the LOWER piece's neck (90deg spacing)
+# - Lugs have chamfered top+bottom outer edges -> cam ramps that wedge into
+#   the lock arc, pre-loading the joint as you twist
+# - The UPPER piece's skirt OUTER FACE IS SMOOTH AND FLUSH with body OD
+#   (no visible slots from outside, just like the reference)
+# - L-shaped slots are BLIND POCKETS cut only into the skirt's INNER face.
+#   They do NOT cut through to the outside.
+LUG_COUNT       = 4       # 4 lugs at 0/90/180/270 (matches reference)
+LUG_W_DEG       = 17      # lug arc width (matches reference)
+LUG_H           = 2.5     # lug height (z dim, INCLUDING ramps)
+LUG_PROJECT     = 1.0     # radial protrusion of lug from neck outer face (full)
+LUG_CHAMFER     = 0.5     # height of cam ramps at lug top and bottom; the lug
+                          # has a "flat peak" in the middle and tapers to the
+                          # neck face at top and bottom over LUG_CHAMFER mm.
+LUG_Z_CENTER_FRAC = 0.5   # lug centered in the neck height (fraction 0..1)
+TWIST_LOCK_DEG  = 25      # rotation needed to fully engage lock
+SKIRT_CLEAR     = 0.2     # radial clearance: skirt_inner - neck_outer (TIGHT)
+SLOT_DEPTH      = 1.2     # how deep the BLIND L-pocket cuts into skirt wall
+                          # (skirt wall is ~1.8mm; this leaves ~0.6mm of outer
+                          # material so the slot does NOT show on the outside)
+SLOT_LOCK_W_DEG = 30      # how far the lock arc extends beyond the vert channel
+SLOT_LOCK_H_CLEAR = 0.3   # vertical clearance for the lug in the lock arc
+NECK_INSET      = 2       # neck OD = body OD - 2*NECK_INSET (matches reference's
+                          # 2mm step from body OD to neck OD)
 
 # Floor (TENT-shape): two slopes meeting at a ridge along the X axis (just
 # like the cap's roof but inverted INSIDE the tier), so any water inside flows
@@ -124,15 +141,20 @@ BH_CABLE_D      = 2.5
 COL_OUTER_R     = COL_ID / 2 + WALL          # outer radius of inner column wall
 BODY_INNER_R    = OD / 2 - WALL              # inner face of body wall
 
-# Bayonet sizing: the neck is intentionally narrower than the body so the skirt
-# (which is at body OD) has a thick wall around the slot cuts. The lug projects
-# from the neck outer face out to (or just shy of) the skirt outer face, so it
-# pokes visibly THROUGH the slot when the bayonet is locked.
-NECK_R          = OD / 2 - NECK_INSET        # outer radius of neck
-NECK_INNER_R    = NECK_R - WALL              # inner radius of neck
-SKIRT_R_OUT     = OD / 2                     # outer radius of skirt (= body OD)
-SKIRT_R_IN      = NECK_R + SKIRT_CLEAR       # inner radius of skirt
-LUG_OUT_R       = NECK_R + LUG_PROJECT       # tip of lug (just shy of skirt OD)
+# Bayonet sizing -- matches the bayonetbox.3mf reference architecture:
+# Body OD steps inward by NECK_INSET to form the neck (smaller r). The next
+# tier's skirt sleeves over the neck, with skirt OD == body OD (flush, smooth
+# outer surface). Lugs project outward from the neck and engage L-pockets that
+# are cut into the skirt's inner face but DO NOT cut through the outer face.
+NECK_R          = OD / 2 - NECK_INSET        # outer radius of neck (=28 at OD=60)
+NECK_INNER_R    = NECK_R - WALL              # inner radius of neck (=26)
+SKIRT_R_OUT     = OD / 2                     # outer radius of skirt (=30, flush w/body)
+SKIRT_R_IN      = NECK_R + SKIRT_CLEAR       # inner radius of skirt (=28.2)
+                                             # -> skirt wall = 1.8mm
+LUG_OUT_R       = NECK_R + LUG_PROJECT       # tip of lug (=29.0)
+SLOT_FLOOR_R    = SKIRT_R_IN + SLOT_DEPTH    # bottom of L-pocket inside the wall (=29.4)
+                                             # -> 0.6mm of skirt wall remains outside
+                                             #    the slot, hiding it from view
 
 
 # =============================================================================
@@ -161,86 +183,131 @@ def hollow_cylinder(r_out, r_in, h, z=0):
 
 
 # =============================================================================
-# Bayonet
+# Bayonet -- replicates the bayonetbox.3mf reference geometry
 # =============================================================================
-# Mechanism (now actually working AND visible):
-#   - The LOWER piece's NECK has 2 outward-projecting LUGS near the top. The
-#     lugs stick out past the neck so they're visible bumps on its outer face.
-#   - The UPPER piece's SKIRT has 2 L-shaped SLOTS cut all the way through the
-#     skirt wall. The slots open at the bottom edge of the skirt and turn
-#     sideways at the top.
-#   - Drop the upper piece down: the lugs (on the lower's neck, sticking out)
-#     enter the slots (in the upper's skirt) from below, and slide up the
-#     vertical channel as the upper descends.
-#   - When the upper's body bottom rests on the lower's neck top, the lugs are
-#     at the top of the vertical channel. Twist TWIST_LOCK_DEG (e.g. 50 deg)
-#     and the lugs slide sideways into the horizontal lock channel.
-#   - Below the lock channel (in the same theta range) the skirt is solid, so
-#     the lugs cannot slide back down -- the upper piece is mechanically
-#     trapped on the lower piece. Twist back and lift to release.
+# Mechanism (verified by analysing bayonetbox.3mf):
+#   - LOWER piece has a NECK that steps inward from the body OD by NECK_INSET.
+#     4 LUGS project OUTWARD from the neck at theta=0/90/180/270. Lugs have
+#     chamfered top+bottom outer edges (cam ramps).
+#   - UPPER piece has a SKIRT that hangs below its body. Skirt OD == body OD
+#     (FLUSH, smooth outer surface -- no visible slots from outside). Skirt
+#     INNER sleeves over the neck with a tight 0.2mm radial clearance.
+#   - L-shaped POCKETS are carved into the skirt's INNER face only -- they do
+#     NOT cut through to the outer face. The outer face stays smooth, exactly
+#     like the reference.
+#   - Drop upper onto lower: skirt sleeves over neck, lugs enter the open
+#     vertical channel of each L-pocket from BELOW (channel opens at skirt
+#     bottom edge). When the skirt bottom rests on the body shelf at the top
+#     of the lower piece's body, the lugs are at the top of the vertical
+#     channel.
+#   - Twist the upper piece TWIST_LOCK_DEG and the lugs slide sideways into
+#     the horizontal lock arc at the TOP of the L. The skirt material above
+#     the lock arc forms a "ceiling" that the lug's chamfered top-edge cam
+#     ramps wedge against, pre-loading the joint tight. Skirt material BELOW
+#     the lock arc prevents the lug dropping back down.
+#   - Twist back and lift to release.
+
+def make_chamfered_lug(theta_center, z_bot):
+    """Outward-projecting cammed lug at theta_center, occupying z=z_bot..z_bot+LUG_H.
+    Built as 3 stacked annular sectors approximating a hexagonal r-z profile:
+        top:   thin ramp tapering from full projection back to neck face
+        mid:   full LUG_PROJECT, flat peak (where the lug grips the lock arc)
+        bot:   thin ramp tapering from neck face up to full projection
+    The bottom ramp guides the lug smoothly into the slot as the upper piece
+    descends; the top ramp wedges against the lock arc ceiling as you twist,
+    pre-loading the joint.
+    """
+    half_w = LUG_W_DEG / 2
+    r_taper = NECK_R + LUG_PROJECT * 0.5    # half-projection at the ramp tips
+    r_full = NECK_R + LUG_PROJECT
+    bot = annular_sector(
+        r_in=NECK_R - 0.1, r_out=r_taper,
+        theta_a=theta_center - half_w, theta_b=theta_center + half_w,
+        h=LUG_CHAMFER, z=z_bot,
+    )
+    mid = annular_sector(
+        r_in=NECK_R - 0.1, r_out=r_full,
+        theta_a=theta_center - half_w, theta_b=theta_center + half_w,
+        h=LUG_H - 2 * LUG_CHAMFER, z=z_bot + LUG_CHAMFER,
+    )
+    top = annular_sector(
+        r_in=NECK_R - 0.1, r_out=r_taper,
+        theta_a=theta_center - half_w, theta_b=theta_center + half_w,
+        h=LUG_CHAMFER, z=z_bot + LUG_H - LUG_CHAMFER,
+    )
+    return bot.union(mid).union(top)
+
 
 def make_neck(z_base):
-    """Lower bayonet half (male). Hollow ring with 2 outward-projecting lugs
-    near the top."""
+    """Lower bayonet half (male). Hollow ring with 4 outward-projecting cammed
+    lugs at theta=0/90/180/270, centred in the neck height."""
     neck = hollow_cylinder(NECK_R, NECK_INNER_R, NECK_H, z_base)
+    # Centre the lug Z within the neck so the upper skirt has solid material
+    # both above the lug (forms the lock-arc ceiling) and below the lug (forms
+    # the lock-arc floor that traps the lug from sliding back down).
+    lug_z_bot = z_base + (NECK_H - LUG_H) * LUG_Z_CENTER_FRAC
     for i in range(LUG_COUNT):
         theta = 360 * i / LUG_COUNT
-        lug_z_bot = z_base + NECK_H - LUG_H - SLOT_CLEAR / 2
-        lug = annular_sector(
-            r_in=NECK_R - 0.1,                  # slight overlap into neck wall
-            r_out=LUG_OUT_R,
-            theta_a=theta - LUG_W_DEG / 2,
-            theta_b=theta + LUG_W_DEG / 2,
-            h=LUG_H,
-            z=lug_z_bot,
-        )
+        lug = make_chamfered_lug(theta, lug_z_bot)
         neck = neck.union(lug)
     return neck
 
 
 def make_skirt(z_top):
-    """Upper bayonet half (female). Hollow ring hanging below the body, with 2
-    L-slots cut through the wall."""
+    """Upper bayonet half (female). Hollow ring hanging below the body. Outer
+    face is smooth and flush with body OD (= reference's "perfect seam").
+    L-shaped POCKETS are carved into the inner face only, at theta=0/90/180/270.
+    """
     skirt = hollow_cylinder(SKIRT_R_OUT, SKIRT_R_IN, NECK_H, z_top - NECK_H)
     for i in range(LUG_COUNT):
         theta = 360 * i / LUG_COUNT
-        skirt = cut_skirt_l_slot(skirt, theta, z_top)
+        skirt = cut_skirt_l_pocket(skirt, theta, z_top)
     return skirt
 
 
-def cut_skirt_l_slot(skirt, theta_slot, z_top):
-    """Cut an L-shaped slot through the skirt wall at angle theta_slot.
+def cut_skirt_l_pocket(skirt, theta_slot, z_top):
+    """Cut a BLIND L-shaped pocket into the inner face of the skirt at theta_slot.
 
-    Geometry (in the skirt's local z frame, with z_top = top of skirt = upper
-    body's bottom, skirt occupies z = z_top - NECK_H to z_top):
-      Vertical channel: full skirt height, opens at the bottom edge of the
-                        skirt so the lug can enter from below as the upper
-                        piece descends.
-      Lock channel:     at the TOP of the vertical channel, extends sideways
-                        by TWIST_LOCK_DEG. After the upper is fully seated,
-                        a twist slides the lug into here.
+    The pocket ONLY removes material from the inner face up to SLOT_DEPTH deep.
+    It does NOT cut through to the outer face -- the outer face stays smooth
+    (this is what makes the bayonetbox look "perfect" from outside).
+
+    Vertical channel: opens at bottom edge of skirt, runs full skirt height,
+                      LUG_W_DEG + 4 deg wide. The lug enters here from below
+                      as the upper piece descends.
+    Lock arc:         at the same Z range as the LUG (when seated), extending
+                      sideways (in +theta direction) by SLOT_LOCK_W_DEG. After
+                      the upper is seated, a twist of TWIST_LOCK_DEG slides
+                      the lug into here. Skirt material BELOW the lock arc
+                      traps the lug from sliding back down. Skirt material
+                      ABOVE the lock arc forms the "ceiling" the lug's top cam
+                      ramp wedges against, pre-loading the joint.
     """
     z_bot = z_top - NECK_H
-    vert_arc_w = LUG_W_DEG + 4
-    lock_h = LUG_H + SLOT_CLEAR
+    vert_arc_w = LUG_W_DEG + 4                          # 2 deg clearance each side
+    # Lock arc Z range: centred on where the lug sits when the upper is seated.
+    lug_z_in_skirt = (NECK_H - LUG_H) * LUG_Z_CENTER_FRAC  # lug bottom rel. to skirt bot
+    lock_h = LUG_H + SLOT_LOCK_H_CLEAR
+    lock_z_bot = z_bot + lug_z_in_skirt - SLOT_LOCK_H_CLEAR / 2
 
-    # Vertical channel (open at bottom, runs full skirt height)
+    # Vertical channel (BLIND pocket: cuts radially only, NOT through outer face).
+    # Opens at skirt bottom (extends 0.3mm below for clean bottom-edge break).
     vert_cut = annular_sector(
-        r_in=SKIRT_R_IN - 0.6,
-        r_out=SKIRT_R_OUT + 0.6,
+        r_in=SKIRT_R_IN - 0.05,             # slight overlap into wall
+        r_out=SLOT_FLOOR_R,                 # blind: stops before reaching outer face
         theta_a=theta_slot - vert_arc_w / 2,
         theta_b=theta_slot + vert_arc_w / 2,
         h=NECK_H + 0.6,
         z=z_bot - 0.3,
     )
-    # Lock channel (top of vertical, extends sideways)
+    # Lock arc (BLIND pocket at the lug's Z, extends sideways from end of vert channel)
     lock_cut = annular_sector(
-        r_in=SKIRT_R_IN - 0.6,
-        r_out=SKIRT_R_OUT + 0.6,
-        theta_a=theta_slot + vert_arc_w / 2 - 1,
-        theta_b=theta_slot + vert_arc_w / 2 + TWIST_LOCK_DEG,
-        h=lock_h + 0.3,
-        z=z_top - lock_h,
+        r_in=SKIRT_R_IN - 0.05,
+        r_out=SLOT_FLOOR_R,
+        theta_a=theta_slot + vert_arc_w / 2 - 1,    # 1 deg overlap with vert channel
+        theta_b=theta_slot + vert_arc_w / 2 + SLOT_LOCK_W_DEG,
+        h=lock_h,
+        z=lock_z_bot,
     )
     return skirt - vert_cut - lock_cut
 
@@ -363,13 +430,37 @@ def make_outer_wall_louvred(height, z_base):
 
 
 def make_outer_wall_esp32(height, z_base):
-    """Solid wall + USB-C cutout. For the tier that actually houses the ESP32."""
+    """Solid wall + USB-C cutout + rain hood awning above the cutout.
+
+    Rain hood is a triangular wedge sticking out in +X just above the USB
+    hole. Top surface slopes DOWN going outward, so any water running down
+    the wall above is diverted forward and drops off the front edge clear
+    of the USB hole. The underside of the wedge is at 45 deg overhang so it
+    prints without supports.
+    """
     wall = make_outer_wall_solid(height, z_base)
-    usb_z = z_base + FLOOR_T_RIDGE + USB_Z_OFFSET - USB_H / 2
+    usb_z_bot = z_base + FLOOR_T_RIDGE + USB_Z_OFFSET - USB_H / 2
+    usb_z_top = usb_z_bot + USB_H
     usb = (cq.Workplane("XY")
            .box(OD, USB_W, USB_H, centered=(False, True, False))
-           .translate((0, 0, usb_z)))
-    return wall - usb
+           .translate((0, 0, usb_z_bot)))
+
+    hood_proj      = 4              # how far the hood projects past the wall
+    hood_back_h    = 6              # back-edge height above USB top (against wall)
+    hood_tip_h     = 4              # tip height above USB top (45 deg under-side)
+    hood_width     = USB_W + 6      # wider than USB hole so rain can't sneak in sides
+    x_back         = OD / 2 - 0.5   # slight overlap into wall for clean union
+    x_front        = OD / 2 + hood_proj
+
+    pts = [
+        (x_back,  usb_z_top),                 # back-bot: at top of USB hole
+        (x_front, usb_z_top + hood_tip_h),    # front tip
+        (x_back,  usb_z_top + hood_back_h),   # back-top: well above USB hole
+    ]
+    hood = (cq.Workplane("XZ").polyline(pts).close()
+            .extrude(hood_width)
+            .translate((0, -hood_width / 2, 0)))
+    return (wall - usb).union(hood)
 
 
 WALL_BUILDERS = {
