@@ -432,11 +432,12 @@ def make_outer_wall_louvred(height, z_base):
 def make_outer_wall_esp32(height, z_base):
     """Solid wall + USB-C cutout + rain hood awning above the cutout.
 
-    Rain hood is a triangular wedge sticking out in +X just above the USB
-    hole. Top surface slopes DOWN going outward, so any water running down
-    the wall above is diverted forward and drops off the front edge clear
-    of the USB hole. The underside of the wedge is at 45 deg overhang so it
-    prints without supports.
+    Rain hood is a triangular wedge that sits just above the USB hole and
+    projects outward in +X. Its top surface slopes DOWN going outward, so any
+    water running down the wall above is diverted forward and drops off the
+    front edge clear of the USB hole. The hood is wider and longer than the
+    USB hole so rain can't sneak in around the sides. The underside is at
+    ~45 deg overhang so it prints without supports.
     """
     wall = make_outer_wall_solid(height, z_base)
     usb_z_bot = z_base + FLOOR_T_RIDGE + USB_Z_OFFSET - USB_H / 2
@@ -445,21 +446,31 @@ def make_outer_wall_esp32(height, z_base):
            .box(OD, USB_W, USB_H, centered=(False, True, False))
            .translate((0, 0, usb_z_bot)))
 
-    hood_proj      = 4              # how far the hood projects past the wall
-    hood_back_h    = 6              # back-edge height above USB top (against wall)
-    hood_tip_h     = 4              # tip height above USB top (45 deg under-side)
-    hood_width     = USB_W + 6      # wider than USB hole so rain can't sneak in sides
-    x_back         = OD / 2 - 0.5   # slight overlap into wall for clean union
+    hood_proj      = 7              # how far the hood projects past the wall (BIGGER)
+    hood_back_h    = 8              # back-edge height above USB top
+    hood_tip_h     = 6              # tip height above USB top (45 deg under-side)
+    hood_width     = USB_W + 12     # wider than USB hole on each side
+    hood_lip       = 1.5            # how far the front lip drops below USB top
+    x_back         = OD / 2 - 1     # 1mm overlap into wall for solid union
     x_front        = OD / 2 + hood_proj
 
-    pts = [
-        (x_back,  usb_z_top),                 # back-bot: at top of USB hole
-        (x_front, usb_z_top + hood_tip_h),    # front tip
-        (x_back,  usb_z_top + hood_back_h),   # back-top: well above USB hole
+    # Build the hood as an explicit triangular prism in 3D space.
+    # The triangle lives in the XZ plane (y=0), and we extrude in +Y by hood_width.
+    # Using cq.Wire/Face/Solid directly avoids the workplane orientation
+    # ambiguity that bit us before.
+    tri_pts = [
+        cq.Vector(x_back,  0, usb_z_top - hood_lip),     # back: starts 1.5mm BELOW USB top
+        cq.Vector(x_front, 0, usb_z_top + hood_tip_h),   # front tip
+        cq.Vector(x_back,  0, usb_z_top + hood_back_h),  # back-top
+        cq.Vector(x_back,  0, usb_z_top - hood_lip),     # close
     ]
-    hood = (cq.Workplane("XZ").polyline(pts).close()
-            .extrude(hood_width)
+    wire = cq.Wire.makePolygon(tri_pts)
+    face = cq.Face.makeFromWires(wire)
+    hood_solid = cq.Solid.extrudeLinear(face, cq.Vector(0, hood_width, 0))
+    hood = (cq.Workplane("XY")
+            .add(hood_solid)
             .translate((0, -hood_width / 2, 0)))
+
     return (wall - usb).union(hood)
 
 
@@ -517,17 +528,35 @@ def make_floor(z_base):
 
 
 def make_drain_cutter(z_base):
-    """TWO drain holes at the two low points of the tent floor, one on the +y
-    side and one on the -y side (where the slopes meet the outer wall).
-    Bottom of each drain sits at floor level so pooled water always finds them."""
-    drain_z = z_base + DRAIN_D / 2 + 0.3
-    # Cylindrical drain along Y axis, centred at y=0 (will be cut on both
-    # +y and -y sides since it's a long cylinder through the entire diameter).
-    drain = (cq.Workplane("XZ")
-             .center(0, drain_z)
-             .circle(DRAIN_D / 2)
-             .extrude(OD + 10, both=True))
-    return drain
+    """TWO small circular drain HOLES through the outer wall, one at +y and
+    one at -y (where the tent floor's slopes reach the wall, so pooled water
+    flows down the slopes and exits through these holes).
+
+    Each is a SHORT cylinder cutting through ONLY the outer wall thickness --
+    NOT a long tunnel through the whole floor (which would just hold water
+    horizontally). The hole's bottom sits just above the floor edge so pooled
+    water always finds it.
+
+    Outer wall spans y = +/-(OD/2-WALL) to +/-(OD/2). Each drain cylinder is
+    placed so its axis crosses the wall, with 1mm of overlap on each side for
+    a clean Boolean cut.
+    """
+    drain_z = z_base + FLOOR_T_EDGE + DRAIN_D / 2 + 0.2
+    r = DRAIN_D / 2
+    cyl_len = WALL + 2     # length along Y: wall thickness + 1mm overlap each side
+    # +Y drain: starts 1mm INSIDE the inner face, extends across the wall to 1mm OUTSIDE
+    cyl_p = cq.Solid.makeCylinder(
+        r, cyl_len,
+        pnt=cq.Vector(0, BODY_INNER_R - 1, drain_z),    # y = inner_r - 1
+        dir=cq.Vector(0, 1, 0),                         # extends +y by cyl_len
+    )
+    # -Y drain: starts 1mm OUTSIDE the outer face, extends INWARD across the wall
+    cyl_n = cq.Solid.makeCylinder(
+        r, cyl_len,
+        pnt=cq.Vector(0, -OD / 2 - 1, drain_z),         # y = -outer_r - 1
+        dir=cq.Vector(0, 1, 0),                         # extends +y by cyl_len
+    )
+    return cq.Workplane("XY").add(cyl_p).add(cyl_n)
 
 
 def make_cable_slot_cutter(z_base, body_h, theta):
