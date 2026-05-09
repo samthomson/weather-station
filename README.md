@@ -16,6 +16,26 @@ ESP8266 weather station that posts sensor data to Nostr via WebSocket with BIP-3
 - MQ-135/MQ-7 air quality — uncalibrated gas detection 0-1023 | also works: MQ-2, other MQ series
 - SSD1306 OLED display (I2C) - optional
 
+### MVP shopping list
+
+Wall-powered reference build for new prototypes: **ESP32**, particulates, temp/humidity/pressure, daylight, rain — **no MQ gas sensor, no OLED**.
+
+| Qty | Part |
+|-----|------|
+| 1 | ESP32 dev board (same class as `board = esp32dev` in PlatformIO) |
+| 1 | BME280 breakout (I2C, 3.3 V) — temperature, humidity, barometric pressure |
+| 1 | PMS5003 — PM1.0, PM2.5, PM10 (include a cable if the module does not ship with one) |
+| 1 | BH1750 breakout (I2C) — ambient light (lux) |
+| 1 | MH-RD rain sensor module (resistive panel, analog out) |
+| 1 | USB cable — connector must match the board (**Micro-USB** or **USB-C**) |
+| 1 | USB wall charger — **5 V**, **≥ 1 A** (2 A is a comfortable margin for ESP32 + PMS fan) |
+
+Hookup wire or Dupont jumpers between the dev board and breakouts are assumed by your enclosure / assembly.
+
+**MVP firmware:** In `secrets_stationN.h`, enable `ENABLE_BME280`, `ENABLE_BH1750`, `ENABLE_RAIN`, and `ENABLE_PMS` with `PMS_MODEL "PMS5003"`; set `ENABLE_DHT`, `ENABLE_MQ`, and `ENABLE_OLED` to `false`. Use a PlatformIO ESP32 environment that pulls in the BME280 and BH1750 libraries (for example `esp32dev_station3`).
+
+**MVP ESP32 wiring:** PMS5003 serial RX→**GPIO16**, TX→**GPIO17**. BME280 and BH1750 share **I2C** (**GPIO21**=SDA, **GPIO22**=SCL). Rain sensor analog→**GPIO34**.
+
 ### Pin Connections
 
 **ESP8266 (NodeMCU v2):**
@@ -131,6 +151,7 @@ Each tag: `[sensor_type, value, model]`
 - [ ] web dashboard
 - [ ] more modular readings
 - [ ] MVP
+  - [x] hardware shopping list (see **MVP shopping list** under Hardware)
   - [ ] daylight
   - [ ] rain
   - [ ] air pollution
