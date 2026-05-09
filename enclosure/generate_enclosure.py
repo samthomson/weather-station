@@ -42,20 +42,20 @@ OUT = os.path.dirname(os.path.abspath(__file__))
 # =============================================================================
 # Parameters (mm)
 # =============================================================================
-# Full-size weather station: ~210mm tall stack, 120mm body OD, 220mm-wide foot.
-# Walls and the bayonet are sized so the slot pocket leaves ~2mm of wall
-# material outside it (matches the bayonetbox reference's 50% wall-remaining
-# ratio, much more robust than the previous 0.6mm strip).
+# Mid-size weather station: ~165mm tall stack, 90mm body OD, 165mm-wide foot.
+# (1.5x of the original 60mm prototype.) Walls and the bayonet are sized so
+# the slot pocket leaves ~46% of wall thickness as solid outer material -- a
+# big improvement over the original 33% that was cracking.
 
-OD              = 120     # outer diameter of every body section
-COL_ID          = 24      # cable column hole diameter (cables route through here)
-WALL            = 4       # default wall thickness (~10 perimeters at 0.4mm nozzle)
-TIER_INNER_H    = 64      # body height per tier
-NECK_H          = 12      # bayonet neck/skirt overlap height
+OD              = 90      # outer diameter of every body section
+COL_ID          = 18      # cable column hole diameter (cables route through here)
+WALL            = 3       # default wall thickness
+TIER_INNER_H    = 48      # body height per tier
+NECK_H          = 9       # bayonet neck/skirt overlap height
 
 # Foot (the stand)
-FOOT_OD         = 220     # plate diameter (broad for stability)
-FOOT_T          = 10      # plate thickness
+FOOT_OD         = 165     # plate diameter (broad for stability)
+FOOT_T          = 8       # plate thickness
 
 # Bayonet -- replicates the geometry of the user's reference bayonetbox.3mf:
 # - 4 OUTWARD-projecting lugs on the LOWER piece's neck (90deg spacing)
@@ -67,82 +67,104 @@ FOOT_T          = 10      # plate thickness
 #   They do NOT cut through to the outside.
 LUG_COUNT       = 4       # 4 lugs at 0/90/180/270 (matches reference)
 LUG_W_DEG       = 17      # lug arc width, in DEGREES (does not scale with size)
-LUG_H           = 5       # lug height (z dim, INCLUDING ramps)
-LUG_PROJECT     = 1.5     # radial protrusion of lug from neck outer face. NOT
-                          # the literal 2x of the previous version - kept lower
-                          # so SLOT_DEPTH can also be lower, leaving more wall
-                          # material outside the slot for robustness.
-LUG_CHAMFER     = 1.0     # height of cam ramps at lug top and bottom; the lug
+LUG_H           = 4       # lug height (z dim, INCLUDING ramps)
+LUG_PROJECT     = 1.2     # radial protrusion of lug from neck outer face.
+LUG_CHAMFER     = 0.75    # height of cam ramps at lug top and bottom; the lug
                           # has a "flat peak" in the middle and tapers to the
                           # neck face at top and bottom over LUG_CHAMFER mm.
 LUG_Z_CENTER_FRAC = 0.5   # lug centered in the neck height (fraction 0..1)
 TWIST_LOCK_DEG  = 25      # rotation needed to fully engage lock (degrees)
 SKIRT_CLEAR     = 0.2     # radial clearance: skirt_inner - neck_outer (TIGHT,
                           # FDM-tolerance value, does NOT scale with size)
-SLOT_DEPTH      = 1.9     # how deep the BLIND L-pocket cuts into skirt wall.
-                          # Skirt wall is 3.8mm; this leaves ~1.9mm of outer
-                          # material (50% of wall) -- matches the reference
-                          # bayonetbox proportions and is 3x more material
-                          # than the previous design (which had 0.6mm and was
-                          # cracking). LUG_PROJECT must be < SLOT_DEPTH.
+SLOT_DEPTH      = 1.5     # how deep the BLIND L-pocket cuts into skirt wall.
+                          # Skirt wall is 2.8mm; this leaves ~1.3mm of outer
+                          # material (46% of wall) -- 2x the original 0.6mm
+                          # strip that was cracking, close to the reference's
+                          # 51% ratio. LUG_PROJECT must be < SLOT_DEPTH.
 SLOT_LOCK_W_DEG = 30      # how far the lock arc extends beyond the vert channel
 SLOT_LOCK_H_CLEAR = 0.3   # vertical clearance for the lug in the lock arc
-NECK_INSET      = 4       # neck OD = body OD - 2*NECK_INSET (4mm step matches
-                          # reference's ratio at the doubled scale)
+NECK_INSET      = 3       # neck OD = body OD - 2*NECK_INSET (3mm step at this
+                          # 1.5x scale)
 
 # Floor (TENT-shape): two slopes meeting at a ridge along the X axis (just
 # like the cap's roof but inverted INSIDE the tier), so any water inside flows
 # down the slopes to TWO drain holes (one on each side, at the low points).
 # Pitch matches the roof (15 deg) for visual consistency.
 FLOOR_PITCH_DEG = 15
-FLOOR_T_RIDGE   = 18      # floor thickness at the ridge (high point, along x axis)
-FLOOR_T_EDGE    = 2.4     # floor thickness at the y-axis (low points, where drains are)
-DRAIN_D         = 8       # diameter of each drain hole through the outer wall
+FLOOR_T_RIDGE   = 14      # floor thickness at the ridge (high point, along x axis)
+FLOOR_T_EDGE    = 1.8     # floor thickness at the y-axis (low points, where drains are)
+DRAIN_D         = 6       # diameter of each drain hole through the outer wall
 
 # Body-to-neck shoulder: tapers inward from r=BODY_INNER_R at z=height-SHOULDER_H
 # to r=NECK_INNER_R at z=height, so the neck has body material to mate with
 # (otherwise the neck would float above the body wall, unconnected).
-SHOULDER_H      = 6
+SHOULDER_H      = 5
 
 # Cable slots (through inner column wall) - run along x axis (perpendicular to
 # the y-axis drains and along the floor's ridge)
-CABLE_SLOT_W    = 14
-CABLE_SLOT_H    = 12
+CABLE_SLOT_W    = 11
+CABLE_SLOT_H    = 9
 CABLE_SLOT_COUNT = 2
 
 # ESP32 tier (USB cutout sized for a USB-C plug + cable strain relief).
 # USB_W/USB_H are physical-connector dimensions and DO NOT scale with the body.
 USB_W           = 14
 USB_H           = 8
-USB_Z_OFFSET    = 26      # USB centre this far above the inner floor surface
+USB_Z_OFFSET    = 20      # USB centre this far above the inner floor surface
 
 # Louvred wall (REAL Stevenson-screen): 4 vertical posts hold a stack of tilted
 # annular slats. Slats DON'T touch each other -- there are horizontal gaps on
 # BOTH the inner and outer faces, so air can actually pass through. The slats
 # tilt outward-and-down so rain runs off the outer edge and falls clear.
-SLAT_THICKNESS  = 3.2     # vertical (z) thickness of each slat at the inner face
-SLAT_TILT       = 5       # outer edge of slat sits this far below the inner edge
+SLAT_THICKNESS  = 2.4     # vertical (z) thickness of each slat at the inner face
+SLAT_TILT       = 4       # outer edge of slat sits this far below the inner edge
 POST_COUNT      = 4       # vertical posts that hold the slats in place
 POST_W_DEG      = 12      # tangential width of each post (in degrees, no scale)
-N_SLATS_TARGET  = 8       # target number of slats (pitch is auto-computed)
-LOUVRE_MARGIN_BOT = 8     # height of the bottom plinth (at the inner face)
-LOUVRE_MARGIN_TOP = 8     # height of the top shoulder (at the inner face)
+N_SLATS_TARGET  = 6       # target number of slats (pitch is auto-computed)
+LOUVRE_MARGIN_BOT = 6     # height of the bottom plinth (at the inner face)
+LOUVRE_MARGIN_TOP = 6     # height of the top shoulder (at the inner face)
 
-# Cap
-CAP_BODY_H      = 20
+# Cap. Body now contains the same sloped-floor + drain mechanism as the tiers
+# (so any water that gets in via the sensor pockets drains out). CAP_BODY_H
+# must fit FLOOR_T_RIDGE + the cable slot above it + a small margin.
+# ROOF_OVERHANG is intentionally large (15mm) so the roof slope is wide enough
+# for the 55x41mm rain sensor PCB to fit (90mm OD body alone would be too
+# narrow for a sensor that big).
+CAP_BODY_H      = 26
 ROOF_PITCH_DEG  = 15
-ROOF_OVERHANG   = 6
+ROOF_OVERHANG   = 15
 
-# Sensor pockets in cap roof. These match the physical sensor PCBs and DO NOT
-# scale with the body size.
-RAIN_X          = 28
-RAIN_Y          = 20
-RAIN_DEPTH      = 1.5
-RAIN_CABLE_D    = 3
-BH_X            = 12
-BH_Y            = 8
-BH_DEPTH        = 1.5
-BH_CABLE_D      = 2.5
+# ----- Sensor pockets in the cap roof -----
+# These match physical sensor PCB dimensions and do NOT scale with the body.
+#
+# Rain sensor (MH-RD style): rectangular PCB with a small 2-pin connector
+# hanging off one long edge. The connector body extends past the PCB edge
+# (RAIN_PIN_OUT) and pins protrude downward (RAIN_PIN_DOWN) below the PCB.
+# Recess geometry:
+#   - main pocket (where the PCB lays flat): RAIN_X+2*MARGIN x RAIN_Y+2*MARGIN,
+#     depth = RAIN_T + MARGIN
+#   - pin sub-pocket (a through-hole adjacent to one long edge of the main
+#     pocket): RAIN_PIN_W x (RAIN_PIN_OUT+MARGIN), goes ALL the way through the
+#     roof so cables can come up from inside the cap to the connector pins.
+RAIN_X          = 55      # PCB long dim (along ridge / X axis)
+RAIN_Y          = 41      # PCB short dim (down the slope / Y axis)
+RAIN_T          = 1       # PCB thickness
+RAIN_MARGIN     = 1       # clearance per side around the PCB
+RAIN_PIN_OUT    = 5       # connector body extends past PCB edge by this much
+RAIN_PIN_DOWN   = 5       # pins protrude this far below the PCB
+RAIN_PIN_W      = 30      # width of the pin sub-pocket along the PCB edge
+
+# BMP280 / BME280: small 16x12 mm breakout PCB. Cables solder up from below to
+# pads on the PCB underside, so we need a through-hole under the sensor.
+# - sensor recess: BH_X+2*MARGIN x BH_Y+2*MARGIN, depth = BH_T + MARGIN
+# - cable hole (through roof, centred under recess): 1mm smaller than the
+#   recess in each dim (so the PCB rests on a 0.5mm-wide lip all around).
+BH_X            = 16      # PCB long dim
+BH_Y            = 12      # PCB short dim
+BH_T            = 1       # PCB thickness
+BH_MARGIN       = 1       # clearance per side around the PCB
+BH_HOLE_INSET   = 0.5     # cable hole edge is this far inside the recess edge
+                          # (per side; total inset = 1mm in each dim)
 
 # =============================================================================
 # Derived
@@ -155,17 +177,17 @@ BODY_INNER_R    = OD / 2 - WALL              # inner face of body wall
 # tier's skirt sleeves over the neck, with skirt OD == body OD (flush, smooth
 # outer surface). Lugs project outward from the neck and engage L-pockets that
 # are cut into the skirt's inner face but DO NOT cut through the outer face.
-NECK_R          = OD / 2 - NECK_INSET        # outer radius of neck (=56 at OD=120)
-NECK_INNER_R    = NECK_R - WALL              # inner radius of neck (=52)
-SKIRT_R_OUT     = OD / 2                     # outer radius of skirt (=60, flush w/body)
-SKIRT_R_IN      = NECK_R + SKIRT_CLEAR       # inner radius of skirt (=56.2)
-                                             # -> skirt wall = 3.8mm (THICK)
-LUG_OUT_R       = NECK_R + LUG_PROJECT       # tip of lug (=57.5)
-SLOT_FLOOR_R    = SKIRT_R_IN + SLOT_DEPTH    # bottom of L-pocket inside wall (=58.1)
-                                             # -> ~1.9mm of skirt wall remains outside
-                                             #    the slot (50% of wall thickness,
-                                             #    matches reference proportions and
-                                             #    is 3x the previous version's 0.6mm)
+NECK_R          = OD / 2 - NECK_INSET        # outer radius of neck (=42 at OD=90)
+NECK_INNER_R    = NECK_R - WALL              # inner radius of neck (=39)
+SKIRT_R_OUT     = OD / 2                     # outer radius of skirt (=45, flush w/body)
+SKIRT_R_IN      = NECK_R + SKIRT_CLEAR       # inner radius of skirt (=42.2)
+                                             # -> skirt wall = 2.8mm
+LUG_OUT_R       = NECK_R + LUG_PROJECT       # tip of lug (=43.2)
+SLOT_FLOOR_R    = SKIRT_R_IN + SLOT_DEPTH    # bottom of L-pocket inside wall (=43.7)
+                                             # -> ~1.3mm of skirt wall remains outside
+                                             #    the slot (46% of wall thickness;
+                                             #    2x the original 0.6mm strip that
+                                             #    was cracking).
 
 
 # =============================================================================
@@ -457,11 +479,11 @@ def make_outer_wall_esp32(height, z_base):
            .box(OD, USB_W, USB_H, centered=(False, True, False))
            .translate((0, 0, usb_z_bot)))
 
-    hood_proj      = 12             # how far the hood projects past the wall
-    hood_back_h    = 14             # back-edge height above USB top
-    hood_tip_h     = 10             # tip height above USB top (45 deg under-side)
-    hood_width     = USB_W + 16     # wider than USB hole on each side
-    hood_lip       = 2.5            # how far the front lip drops below USB top
+    hood_proj      = 10             # how far the hood projects past the wall
+    hood_back_h    = 12             # back-edge height above USB top
+    hood_tip_h     = 8              # tip height above USB top (45 deg under-side)
+    hood_width     = USB_W + 14     # wider than USB hole on each side
+    hood_lip       = 2              # how far the front lip drops below USB top
     x_back         = OD / 2 - 1     # 1mm overlap into wall for solid union
     x_front        = OD / 2 + hood_proj
 
@@ -570,9 +592,13 @@ def make_drain_cutter(z_base):
     return cq.Workplane("XY").add(cyl_p).add(cyl_n)
 
 
-def make_cable_slot_cutter(z_base, body_h, theta):
-    """Rectangular cutter through the inner column wall."""
-    z_center = z_base + body_h / 2
+def make_cable_slot_cutter(z_base, body_h, theta, z_center=None):
+    """Rectangular cutter through the inner column wall.
+    If z_center is given, the slot is centred on that absolute Z; otherwise
+    it sits at the body's mid-height. The cap uses an explicit z_center to
+    place the slot above its sloped floor."""
+    if z_center is None:
+        z_center = z_base + body_h / 2
     cutter = (cq.Workplane("XY")
               .box(20, CABLE_SLOT_W, CABLE_SLOT_H, centered=(False, True, False))
               .translate((COL_ID / 2 - 1, 0, z_center - CABLE_SLOT_H / 2)))
@@ -621,18 +647,27 @@ def make_tier(wall_style="louvred"):
 
 
 def make_cap():
-    """Top piece. Tier-style body (no floor, so cables drop through) + tent roof
-    with sensor pockets."""
+    """Top piece. SAME architecture as a tier (sloped tent floor + drain holes
+    out the sides) so any rain that gets in via the sensor pockets drains out
+    instead of pooling. Then a tent ROOF on top with sensor pockets."""
     body_z = 0
     body_h = CAP_BODY_H
 
     outer = hollow_cylinder(OD / 2, BODY_INNER_R, body_h, body_z)
     inner_col = make_inner_column_wall(body_h, body_z)
+    floor = make_floor(body_z)
 
-    body = outer.union(inner_col)
+    body = outer.union(inner_col).union(floor)
+    body = body - make_drain_cutter(body_z)
+
+    # Cable slots ABOVE the floor ridge, so cables exit the column into the
+    # cap's interior cavity (between the floor and the roof) where they reach
+    # the sensors mounted in the roof.
+    slot_z_center = body_z + FLOOR_T_RIDGE + CABLE_SLOT_H / 2 + 1
     for i in range(CABLE_SLOT_COUNT):
         theta = 360 * i / CABLE_SLOT_COUNT + 90
-        body = body - make_cable_slot_cutter(body_z, body_h, theta)
+        body = body - make_cable_slot_cutter(body_z, body_h, theta,
+                                              z_center=slot_z_center)
 
     skirt = make_skirt(body_z)
     roof = make_tent_roof(body_z + body_h)
@@ -640,56 +675,110 @@ def make_cap():
     return body.union(skirt).union(roof)
 
 
+def _slope_pocket(local_pts_2d, depth, slope_sign, z_base, half, rise):
+    """Build a pocket cutter on one of the cap roof slopes.
+
+    local_pts_2d: list of (x, y) points (in the slope's local frame, before
+                  rotation) defining a polygon to extrude.
+    depth:        how far the cutter extends BELOW the roof surface (mm); for a
+                  through-hole, pass a value larger than the roof rise so the
+                  cutter goes all the way through.
+    slope_sign:   +1 for the +Y slope (BMP280 side), -1 for the -Y slope (rain
+                  sensor side).
+    Returns the cutter solid in world coordinates, ready to subtract from the
+    tent.
+    """
+    extra = 2  # extend slightly above the roof surface so the boolean is clean
+    poly = (cq.Workplane("XY")
+            .polyline(local_pts_2d).close()
+            .extrude(depth + extra)
+            .translate((0, 0, -depth)))
+    # Rotate the cutter to match the slope's pitch. Rotating around X by
+    # +ROOF_PITCH_DEG tilts the +Z direction toward -Y (so the cutter sits
+    # perpendicular to the +Y slope). For the -Y slope we negate.
+    pitch = ROOF_PITCH_DEG * (-slope_sign)
+    poly = poly.rotate((0, 0, 0), (1, 0, 0), pitch)
+    # Slide the cutter to the centre of the slope (mid-way down it).
+    poly = poly.translate((0, slope_sign * half / 2, z_base + rise / 2))
+    return poly
+
+
 def make_tent_roof(z_base):
     """Triangular-prism tent, trimmed to a circular plan view.
-    Ridge along X axis. Two slopes pitched ROOF_PITCH_DEG. Sensor pockets are
-    recessed into each slope."""
+    Ridge along the X axis. Two slopes pitched ROOF_PITCH_DEG.
+    -Y slope (front) holds the rain sensor; +Y slope (back) holds the BMP280.
+    """
     half = OD / 2 + ROOF_OVERHANG
     rise = half * math.tan(math.radians(ROOF_PITCH_DEG))
 
-    # Triangular prism
     pts = [(-half, 0), (half, 0), (0, rise)]
     tent = (cq.Workplane("YZ")
             .polyline(pts).close()
             .extrude(2 * half)
             .translate((-half, 0, z_base)))
 
-    # Trim to a cylinder so the plan view is round, not square
     trim = (cq.Workplane("XY")
             .circle(half)
             .extrude(rise + 1)
             .translate((0, 0, z_base)))
     tent = tent.intersect(trim)
 
-    # Rain sensor pocket on -Y slope
-    rain_pocket = (cq.Workplane("XY")
-                   .box(RAIN_X, RAIN_Y, RAIN_DEPTH + 2, centered=(True, True, False))
-                   .translate((0, 0, -RAIN_DEPTH - 1)))
-    rain_pocket = rain_pocket.rotate((0, 0, 0), (1, 0, 0), ROOF_PITCH_DEG)
-    rain_pocket = rain_pocket.translate((0, -half / 2, z_base + rise / 2))
-    tent = tent - rain_pocket
+    # ---------------- Rain sensor on -Y slope ----------------
+    # Main pocket: PCB-sized recess (1mm board + 1mm air-gap clearance above).
+    rain_recess_w = RAIN_X + 2 * RAIN_MARGIN          # 57mm wide along the ridge
+    rain_recess_h = RAIN_Y + 2 * RAIN_MARGIN          # 43mm tall along the slope
+    rain_recess_d = RAIN_T + RAIN_MARGIN              # 2mm deep
+    rain_main_pts = [
+        (-rain_recess_w / 2, -rain_recess_h / 2),
+        ( rain_recess_w / 2, -rain_recess_h / 2),
+        ( rain_recess_w / 2,  rain_recess_h / 2),
+        (-rain_recess_w / 2,  rain_recess_h / 2),
+    ]
+    rain_main = _slope_pocket(rain_main_pts, rain_recess_d, -1, z_base, half, rise)
+    tent = tent - rain_main
 
-    rain_cable = (cq.Workplane("XY")
-                  .center(0, -half / 2)
-                  .circle(RAIN_CABLE_D / 2)
-                  .extrude(rise + 5)
-                  .translate((0, 0, z_base - 1)))
-    tent = tent - rain_cable
+    # Pin sub-pocket: a through-hole adjacent to the upper edge of the main
+    # pocket (toward the ridge). Cables come up from inside the cap through
+    # this hole to connect to the rain-sensor pins.
+    pin_y_lo = rain_recess_h / 2                          # upper edge of main pocket
+    pin_y_hi = pin_y_lo + (RAIN_PIN_OUT + RAIN_MARGIN)    # 6mm beyond it
+    pin_pts = [
+        (-RAIN_PIN_W / 2, pin_y_lo),
+        ( RAIN_PIN_W / 2, pin_y_lo),
+        ( RAIN_PIN_W / 2, pin_y_hi),
+        (-RAIN_PIN_W / 2, pin_y_hi),
+    ]
+    # depth: through the roof. rise+CAP_BODY_H is more than enough.
+    rain_pin = _slope_pocket(pin_pts, rise + CAP_BODY_H + 5,
+                              -1, z_base, half, rise)
+    tent = tent - rain_pin
 
-    # BH1750 pocket on +Y slope
-    bh_pocket = (cq.Workplane("XY")
-                 .box(BH_X, BH_Y, BH_DEPTH + 2, centered=(True, True, False))
-                 .translate((0, 0, -BH_DEPTH - 1)))
-    bh_pocket = bh_pocket.rotate((0, 0, 0), (1, 0, 0), -ROOF_PITCH_DEG)
-    bh_pocket = bh_pocket.translate((0, half / 2, z_base + rise / 2))
-    tent = tent - bh_pocket
+    # ---------------- BMP280 on +Y slope ----------------
+    bh_recess_w = BH_X + 2 * BH_MARGIN                   # 18mm
+    bh_recess_h = BH_Y + 2 * BH_MARGIN                   # 14mm
+    bh_recess_d = BH_T + BH_MARGIN                       # 2mm deep
+    bh_main_pts = [
+        (-bh_recess_w / 2, -bh_recess_h / 2),
+        ( bh_recess_w / 2, -bh_recess_h / 2),
+        ( bh_recess_w / 2,  bh_recess_h / 2),
+        (-bh_recess_w / 2,  bh_recess_h / 2),
+    ]
+    bh_main = _slope_pocket(bh_main_pts, bh_recess_d, +1, z_base, half, rise)
+    tent = tent - bh_main
 
-    bh_cable = (cq.Workplane("XY")
-                .center(0, half / 2)
-                .circle(BH_CABLE_D / 2)
-                .extrude(rise + 5)
-                .translate((0, 0, z_base - 1)))
-    tent = tent - bh_cable
+    # Cable hole: BH_HOLE_INSET inside each edge of the recess, going right
+    # through the roof so cables can come up from below to the BMP280 pads.
+    bh_hole_w = bh_recess_w - 2 * BH_HOLE_INSET          # 17mm
+    bh_hole_h = bh_recess_h - 2 * BH_HOLE_INSET          # 13mm
+    bh_hole_pts = [
+        (-bh_hole_w / 2, -bh_hole_h / 2),
+        ( bh_hole_w / 2, -bh_hole_h / 2),
+        ( bh_hole_w / 2,  bh_hole_h / 2),
+        (-bh_hole_w / 2,  bh_hole_h / 2),
+    ]
+    bh_hole = _slope_pocket(bh_hole_pts, rise + CAP_BODY_H + 5,
+                             +1, z_base, half, rise)
+    tent = tent - bh_hole
 
     return tent
 
