@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Weather Station — Build Guide</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; color: #222; }
+  .page { max-width: 800px; margin: 0 auto; padding: 20px; }
+  h1 { text-align: center; font-size: 1.3rem; margin-bottom: 4px; }
+  .sub { text-align: center; color: #888; font-size: 0.85rem; margin-bottom: 24px; }
+  .card { background: #fff; border: 2px solid #ddd; border-radius: 14px; padding: 20px; margin-bottom: 20px; }
+  .card h2 { font-size: 1rem; margin-bottom: 12px; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  th { background: #1a1a2e; color: #fff; padding: 8px 10px; text-align: left; font-weight: 700; }
+  td { padding: 6px 10px; border-bottom: 1px solid #eee; }
+  tr:last-child td { border-bottom: none; }
+  .pin { font-family: 'SF Mono', monospace; font-weight: 800; }
+  .bb { font-family: 'SF Mono', monospace; font-weight: 600; }
+  .badge { display: inline-block; color: #fff; padding: 1px 8px; border-radius: 5px; font-size: 0.78rem; font-weight: 800; }
+  .note { font-size: 0.82rem; color: #666; margin-top: 10px; line-height: 1.5; }
+  .code { background: #1e293b; color: #e2e8f0; padding: 14px; border-radius: 10px; font-family: 'SF Mono', monospace; font-size: 0.82rem; white-space: pre; margin: 8px 0; }
+</style>
+</head>
+<body>
+<div class="page">
+
+<h1>Weather Station — Wiring</h1>
+<p class="sub">30-pin ESP32-WROOM-32 DevKit (3V3 top-left, VIN top-right, USB at top)</p>
+
+<!-- ==================== BOARD PINOUT ==================== -->
+<div class="card">
+<h2>Your ESP32 — all 30 pins</h2>
+<p class="note" style="margin-top:0; margin-bottom:10px;">USB at top, looking down at the component side. Used pins highlighted.</p>
+
+<table>
+<tr>
+  <th style="width:50%;">LEFT column (top → bottom)</th>
+  <th style="width:50%;">RIGHT column (top → bottom)</th>
+</tr>
+<tr><td>1. <span class="pin" style="color:#e97a0b">3V3</span> ★</td>        <td>1. <span class="pin" style="color:#dc2626">VIN</span> ★</td></tr>
+<tr><td>2. <span class="pin" style="color:#555">GND</span> ★</td>           <td>2. <span class="pin" style="color:#555">GND</span></td></tr>
+<tr><td>3. D15</td>                                                           <td>3. D13</td></tr>
+<tr><td>4. D2</td>                                                            <td>4. D12</td></tr>
+<tr><td>5. D4</td>                                                            <td>5. D14</td></tr>
+<tr><td>6. <span class="pin" style="color:#16a34a">RX2</span> ★</td>        <td>6. D27</td></tr>
+<tr><td>7. <span class="pin" style="color:#777">TX2</span> ★</td>           <td>7. D26</td></tr>
+<tr><td>8. D5</td>                                                            <td>8. D25</td></tr>
+<tr><td>9. D18</td>                                                           <td>9. D33</td></tr>
+<tr><td>10. D19</td>                                                          <td>10. D32</td></tr>
+<tr><td>11. <span class="pin" style="color:#2563eb">D21</span> ★</td>       <td>11. D35</td></tr>
+<tr><td>12. RX0</td>                                                          <td>12. <span class="pin" style="color:#9333ea">D34</span> ★</td></tr>
+<tr><td>13. TX0</td>                                                          <td>13. VN</td></tr>
+<tr><td>14. <span class="pin" style="color:#b8960a">D22</span> ★</td>       <td>14. VP</td></tr>
+<tr><td>15. D23</td>                                                          <td>15. EN</td></tr>
+</table>
+<p class="note">★ = used. <b>2 GNDs:</b> left pos 2 and right pos 2.</p>
+</div>
+
+<!-- ==================== BREADBOARD ==================== -->
+<div class="card">
+<h2>Breadboard setup</h2>
+<p class="note" style="margin-top:0;">
+ESP32 sits <b>off the breadboard</b>. Jumper wires connect it to the breadboard.<br><br>
+<b>Rails</b> — the long rows along the edges marked + and −. Every hole in a rail is connected to every other hole in that same rail. Pick any hole.<br>
+<b>Columns</b> — in the main grid, each column number (e.g. column 5) has 5 holes: A5, B5, C5, D5, E5. All 5 are connected together. Pick any free hole in that column.<br><br>
+We use:<br>
+<b>Top + rail</b> = 3.3V power<br>
+<b>Top − rail</b> = ground<br>
+<b>Column 5</b> (holes A5–E5) = SDA<br>
+<b>Column 10</b> (holes A10–E10) = SCL<br>
+<b>Column 15</b> (holes A15–E15) = PMS TX<br>
+<b>Column 20</b> (holes A20–E20) = PMS RX<br>
+<b>Column 25</b> (holes A25–E25) = PMS 5V<br>
+<b>Column 30</b> (holes A30–E30) = Rain AO
+</p>
+</div>
+
+<!-- ==================== THE TABLE ==================== -->
+<div class="card">
+<h2>All connections</h2>
+
+<table>
+<tr><th>From</th><th>To (breadboard)</th></tr>
+
+<tr><td colspan="2" style="background:#f3f4f6; font-weight:700; font-size:0.8rem; color:#555; padding:6px 10px;">ESP32 → breadboard (8 jumper wires)</td></tr>
+
+<tr>
+  <td><span class="pin" style="color:#e97a0b">3V3</span> <span style="color:#aaa; font-size:0.78rem;">(left col, pos 1)</span></td>
+  <td class="bb">top + rail (any hole)</td>
+</tr>
+<tr>
+  <td><span class="pin" style="color:#555">GND</span> <span style="color:#aaa; font-size:0.78rem;">(left col, pos 2)</span></td>
+  <td class="bb">top − rail (any hole)</td>
+</tr>
+<tr>
+  <td><span class="pin" style="color:#2563eb">D21</span> <span style="color:#aaa; font-size:0.78rem;">(left col, pos 11)</span></td>
+  <td class="bb">column 5 (any hole A5–E5)</td>
+</tr>
+<tr>
+  <td><span class="pin" style="color:#b8960a">D22</span> <span style="color:#aaa; font-size:0.78rem;">(left col, pos 14)</span></td>
+  <td class="bb">column 10 (any hole A10–E10)</td>
+</tr>
+<tr>
+  <td><span class="pin" style="color:#16a34a">RX2</span> <span style="color:#aaa; font-size:0.78rem;">(left col, pos 6)</span></td>
+  <td class="bb">column 15 (any hole A15–E15)</td>
+</tr>
+<tr>
+  <td><span class="pin" style="color:#777">TX2</span> <span style="color:#aaa; font-size:0.78rem;">(left col, pos 7)</span></td>
+  <td class="bb">column 20 (any hole A20–E20)</td>
+</tr>
+<tr>
+  <td><span class="pin" style="color:#dc2626">VIN</span> <span style="color:#aaa; font-size:0.78rem;">(right col, pos 1)</span></td>
+  <td class="bb">column 25 (any hole A25–E25)</td>
+</tr>
+<tr>
+  <td><span class="pin" style="color:#9333ea">D34</span> <span style="color:#aaa; font-size:0.78rem;">(right col, pos 12)</span></td>
+  <td class="bb">column 30 (any hole A30–E30)</td>
+</tr>
+
+<tr><td colspan="2" style="background:#f5f3ff; font-weight:700; font-size:0.8rem; color:#555; padding:6px 10px;"><span class="badge" style="background:#7c3aed;">PMS5003</span> → breadboard (4 wires)</td></tr>
+
+<tr>
+  <td>PMS VCC <span style="color:#dc2626;">(red)</span></td>
+  <td class="bb">column 25 (any hole A25–E25)</td>
+</tr>
+<tr>
+  <td>PMS GND <span style="color:#555;">(black)</span></td>
+  <td class="bb">top − rail (any hole)</td>
+</tr>
+<tr>
+  <td>PMS TX <span style="color:#16a34a;">(green)</span></td>
+  <td class="bb">column 15 (any hole A15–E15)</td>
+</tr>
+<tr>
+  <td>PMS RX <span style="color:#777;">(grey)</span></td>
+  <td class="bb">column 20 (any hole A20–E20)</td>
+</tr>
+
+<tr><td colspan="2" style="background:#ecfdf5; font-weight:700; font-size:0.8rem; color:#555; padding:6px 10px;"><span class="badge" style="background:#059669;">BME280</span> → breadboard (4 wires)</td></tr>
+
+<tr>
+  <td>BME VCC <span style="color:#e97a0b;">(orange)</span></td>
+  <td class="bb">top + rail (any hole)</td>
+</tr>
+<tr>
+  <td>BME GND <span style="color:#555;">(black)</span></td>
+  <td class="bb">top − rail (any hole)</td>
+</tr>
+<tr>
+  <td>BME SDA <span style="color:#2563eb;">(blue)</span></td>
+  <td class="bb">column 5 (any hole A5–E5)</td>
+</tr>
+<tr>
+  <td>BME SCL <span style="color:#b8960a;">(yellow)</span></td>
+  <td class="bb">column 10 (any hole A10–E10)</td>
+</tr>
+
+<tr><td colspan="2" style="background:#ecfeff; font-weight:700; font-size:0.8rem; color:#555; padding:6px 10px;"><span class="badge" style="background:#0891b2;">BH1750</span> → breadboard (4 wires)</td></tr>
+
+<tr>
+  <td>BH VCC <span style="color:#e97a0b;">(orange)</span></td>
+  <td class="bb">top + rail (any hole)</td>
+</tr>
+<tr>
+  <td>BH GND <span style="color:#555;">(black)</span></td>
+  <td class="bb">top − rail (any hole)</td>
+</tr>
+<tr>
+  <td>BH SDA <span style="color:#2563eb;">(blue)</span></td>
+  <td class="bb">column 5 (any hole A5–E5)</td>
+</tr>
+<tr>
+  <td>BH SCL <span style="color:#b8960a;">(yellow)</span></td>
+  <td class="bb">column 10 (any hole A10–E10)</td>
+</tr>
+
+<tr><td colspan="2" style="background:#fffbeb; font-weight:700; font-size:0.8rem; color:#555; padding:6px 10px;"><span class="badge" style="background:#d97706;">MH-RD rain</span> → breadboard (3 wires)</td></tr>
+
+<tr>
+  <td>Rain VCC <span style="color:#e97a0b;">(orange)</span></td>
+  <td class="bb">top + rail (any hole)</td>
+</tr>
+<tr>
+  <td>Rain GND <span style="color:#555;">(black)</span></td>
+  <td class="bb">top − rail (any hole)</td>
+</tr>
+<tr>
+  <td>Rain AO <span style="color:#9333ea;">(purple)</span></td>
+  <td class="bb">column 30 (any hole A30–E30)</td>
+</tr>
+
+</table>
+
+<p class="note"><b>23 wires total.</b> Every ESP32 pin has exactly one wire. Every sensor pin has exactly one wire. Shared connections happen on the breadboard.</p>
+</div>
+
+<!-- ==================== FIRMWARE ==================== -->
+<div class="card">
+<h2>Firmware</h2>
+<p class="note" style="margin-top:0;">In <code>include/secrets_stationN.h</code>:</p>
+<div class="code">#define ENABLE_BME280  true
+#define ENABLE_BH1750  true
+#define ENABLE_RAIN    true
+#define ENABLE_PMS     true
+#define PMS_MODEL      "PMS5003"
+
+#define ENABLE_DHT     false
+#define ENABLE_MQ      false
+#define ENABLE_OLED    false
+#define ENABLE_SPS30   false
+#define ENABLE_SDS011  false
+#define ENABLE_BMP280  false</div>
+<div class="code">pio run -e esp32dev_station3 --target upload
+pio device monitor -e esp32dev_station3</div>
+<p class="note">Change <code>station3</code> to your station number. Fill in WiFi, Nostr key, etc.</p>
+</div>
+
+</div>
+</body>
+</html>
