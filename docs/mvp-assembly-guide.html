@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Weather Station — Build Guide</title>
+<title>Weather Station — Stripboard Build</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: -apple-system, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; color: #222; }
-  .page { max-width: 800px; margin: 0 auto; padding: 20px; }
+  .page { max-width: 980px; margin: 0 auto; padding: 20px; }
   h1 { text-align: center; font-size: 1.3rem; margin-bottom: 4px; }
   .sub { text-align: center; color: #888; font-size: 0.85rem; margin-bottom: 24px; }
   .card { background: #fff; border: 2px solid #ddd; border-radius: 14px; padding: 20px; margin-bottom: 20px; }
@@ -17,204 +17,280 @@
   td { padding: 6px 10px; border-bottom: 1px solid #eee; }
   tr:last-child td { border-bottom: none; }
   .pin { font-family: 'SF Mono', monospace; font-weight: 800; }
-  .bb { font-family: 'SF Mono', monospace; font-weight: 600; }
+  .row { font-family: 'SF Mono', monospace; font-weight: 700; background: #f3f4f6; padding: 2px 8px; border-radius: 4px; }
   .badge { display: inline-block; color: #fff; padding: 1px 8px; border-radius: 5px; font-size: 0.78rem; font-weight: 800; }
-  .note { font-size: 0.82rem; color: #666; margin-top: 10px; line-height: 1.5; }
+  .note { font-size: 0.82rem; color: #666; margin-top: 10px; line-height: 1.55; }
   .code { background: #1e293b; color: #e2e8f0; padding: 14px; border-radius: 10px; font-family: 'SF Mono', monospace; font-size: 0.82rem; white-space: pre; margin: 8px 0; }
+  ol.steps { font-size: 0.85rem; line-height: 1.7; padding-left: 22px; color: #444; }
+  ol.steps li { margin-bottom: 6px; }
+  table.matrix td, table.matrix th { vertical-align: middle; padding: 10px 8px; }
+  table.matrix thead th {
+    border-bottom: none;
+    font-size: 0.74rem;
+    letter-spacing: 0.02em;
+  }
+  table.matrix thead th.m-corner {
+    background: linear-gradient(180deg, #334155 0%, #1e293b 100%);
+    color: #f1f5f9;
+    text-align: left;
+    min-width: 3.2rem;
+    font-weight: 800;
+  }
+  table.matrix thead th.module {
+    border-left: 1px solid rgba(255,255,255,.2);
+    text-align: center;
+    vertical-align: bottom;
+    font-weight: 800;
+    line-height: 1.35;
+    padding: 14px 8px;
+  }
+  table.matrix thead th.module .mod-sub {
+    display: block;
+    margin-top: 6px;
+    font-weight: 600;
+    font-size: 0.68rem;
+    opacity: .92;
+  }
+  table.matrix thead th.mod-esp   { background: linear-gradient(180deg, #1d4ed8 0%, #1e40af 100%); color: #eff6ff; }
+  table.matrix thead th.mod-bme   { background: linear-gradient(180deg, #059669 0%, #047857 100%); color: #ecfdf5; }
+  table.matrix thead th.mod-bh    { background: linear-gradient(180deg, #0e7490 0%, #0f766e 100%); color: #ecfeff; }
+  table.matrix thead th.mod-pms   { background: linear-gradient(180deg, #7c3aed 0%, #6d28d9 100%); color: #f5f3ff; }
+  table.matrix thead th.mod-rain  { background: linear-gradient(180deg, #d97706 0%, #b45309 100%); color: #fffbeb; }
+
+  table.matrix tbody th {
+    background: #e2e8f0 !important;
+    color: #0f172a !important;
+    font-weight: 800;
+    text-align: center;
+    border-bottom: 1px solid #cbd5e1;
+    width: 3.2rem;
+  }
+  table.matrix tbody td.meta {
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+    font-weight: 600;
+    color: #1e293b;
+    text-align: left;
+  }
+  table.matrix tbody td.wire-cell {
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+    text-align: center;
+  }
+
+  table.matrix tbody td.mod-esp  { background: #eff6ff; border-bottom: 1px solid #bfdbfe; color: #1e3a8a; text-align: left; font-weight: 600; }
+  table.matrix tbody td.mod-bme  { background: #ecfdf5; border-bottom: 1px solid #a7f3d0; color: #064e3b; text-align: center; font-weight: 700; }
+  table.matrix tbody td.mod-bh   { background: #ecfeff; border-bottom: 1px solid #a5f3fc; color: #134e4a; text-align: center; font-weight: 700; }
+  table.matrix tbody td.mod-pms  { background: #f5f3ff; border-bottom: 1px solid #ddd6fe; color: #4c1d95; text-align: center; font-weight: 700; }
+  table.matrix tbody td.mod-rain { background: #fffbeb; border-bottom: 1px solid #fde68a; color: #78350f; text-align: center; font-weight: 700; }
+
+  table.matrix tbody td.na {
+    color: #94a3b8;
+    font-style: italic;
+    font-weight: 500;
+  }
+
+  .wire-chip {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    border: 1px solid rgba(0,0,0,.12);
+    box-shadow: 0 1px 2px rgba(0,0,0,.06);
+  }
+  .wire-chip.black  { background: #0f172a; color: #f8fafc; border-color: #0f172a; }
+  .wire-chip.orange { background: #ea580c; color: #fff7ed; border-color: #c2410c; }
+  .wire-chip.blue   { background: #2563eb; color: #eff6ff; border-color: #1d4ed8; }
+  .wire-chip.yellow { background: #ca8a04; color: #fefce8; border-color: #a16207; }
+  .wire-chip.green  { background: #16a34a; color: #f0fdf4; border-color: #15803d; }
+  .wire-chip.grey   { background: #64748b; color: #f1f5f9; border-color: #475569; }
+  .wire-chip.red    { background: #dc2626; color: #fef2f2; border-color: #b91c1c; }
+  .wire-chip.purple { background: #7c3aed; color: #f5f3ff; border-color: #6d28d9; }
+
+  .matrix-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 24px rgba(15, 23, 42, .06);
+  }
+  table.matrix { border-radius: 12px; overflow: hidden; font-size: 0.78rem; table-layout: fixed; }
+  table.matrix tbody tr:last-child th,
+  table.matrix tbody tr:last-child td { border-bottom: none; }
 </style>
 </head>
 <body>
 <div class="page">
 
-<h1>Weather Station — Wiring</h1>
-<p class="sub">30-pin ESP32-WROOM-32 DevKit (3V3 top-left, VIN top-right, USB at top)</p>
+<h1>Weather Station — Stripboard Build</h1>
+<p class="sub">30-pin ESP32 · 6×9 cm stripboard (horizontal rows) · MVP v0.∞.1</p>
 
-<!-- ==================== BOARD PINOUT ==================== -->
+<!-- ==================== STRIPBOARD BASICS ==================== -->
 <div class="card">
-<h2>Your ESP32 — all 30 pins</h2>
-<p class="note" style="margin-top:0; margin-bottom:10px;">USB at top, looking down at the component side. Used pins highlighted.</p>
-
-<table>
-<tr>
-  <th style="width:50%;">LEFT column (top → bottom)</th>
-  <th style="width:50%;">RIGHT column (top → bottom)</th>
-</tr>
-<tr><td>1. <span class="pin" style="color:#e97a0b">3V3</span> ★</td>        <td>1. <span class="pin" style="color:#dc2626">VIN</span> ★</td></tr>
-<tr><td>2. <span class="pin" style="color:#555">GND</span> ★</td>           <td>2. <span class="pin" style="color:#555">GND</span></td></tr>
-<tr><td>3. D15</td>                                                           <td>3. D13</td></tr>
-<tr><td>4. D2</td>                                                            <td>4. D12</td></tr>
-<tr><td>5. D4</td>                                                            <td>5. D14</td></tr>
-<tr><td>6. <span class="pin" style="color:#16a34a">RX2</span> ★</td>        <td>6. D27</td></tr>
-<tr><td>7. <span class="pin" style="color:#777">TX2</span> ★</td>           <td>7. D26</td></tr>
-<tr><td>8. D5</td>                                                            <td>8. D25</td></tr>
-<tr><td>9. D18</td>                                                           <td>9. D33</td></tr>
-<tr><td>10. D19</td>                                                          <td>10. D32</td></tr>
-<tr><td>11. <span class="pin" style="color:#2563eb">D21</span> ★</td>       <td>11. D35</td></tr>
-<tr><td>12. RX0</td>                                                          <td>12. <span class="pin" style="color:#9333ea">D34</span> ★</td></tr>
-<tr><td>13. TX0</td>                                                          <td>13. VN</td></tr>
-<tr><td>14. <span class="pin" style="color:#b8960a">D22</span> ★</td>       <td>14. VP</td></tr>
-<tr><td>15. D23</td>                                                          <td>15. EN</td></tr>
-</table>
-<p class="note">★ = used. <b>2 GNDs:</b> left pos 2 and right pos 2.</p>
-</div>
-
-<!-- ==================== BREADBOARD ==================== -->
-<div class="card">
-<h2>Breadboard setup</h2>
+<h2>How the stripboard works</h2>
 <p class="note" style="margin-top:0;">
-ESP32 sits <b>off the breadboard</b>. Jumper wires connect it to the breadboard.<br><br>
-<b>Rails</b> — the long rows along the edges marked + and −. Every hole in a rail is connected to every other hole in that same rail. Pick any hole.<br>
-<b>Columns</b> — in the main grid, each column number (e.g. column 5) has 5 holes: A5, B5, C5, D5, E5. All 5 are connected together. Pick any free hole in that column.<br><br>
-We use:<br>
-<b>Top + rail</b> = 3.3V power<br>
-<b>Top − rail</b> = ground<br>
-<b>Column 5</b> (holes A5–E5) = SDA<br>
-<b>Column 10</b> (holes A10–E10) = SCL<br>
-<b>Column 15</b> (holes A15–E15) = PMS TX<br>
-<b>Column 20</b> (holes A20–E20) = PMS RX<br>
-<b>Column 25</b> (holes A25–E25) = PMS 5V<br>
-<b>Column 30</b> (holes A30–E30) = Rain AO
+Hold the board with holes up, copper strips on the bottom (you solder on the copper side).<br><br>
+<b>One horizontal row = one electrical connection.</b> Every hole on that row is linked by the copper underneath. Put every wire that should be connected into <b>any hole on the same row</b>.<br><br>
+<b>Rows do not connect to each other.</b> Row 3 and row 4 are separate unless you add a wire between them.<br><br>
+<b>Do not solder into a breadboard.</b> On stripboard you push the wire through from the top (no copper side), bend the leg slightly, flip the board, and solder on the copper strip.<br><br>
+<b>ESP32 stays off the board.</b> Use jumper wires: female end on ESP32 pin, solder the male end into a hole on the correct row.
 </p>
 </div>
 
-<!-- ==================== THE TABLE ==================== -->
 <div class="card">
-<h2>All connections</h2>
+<h2>Stripboard matrix (one column per breakout)</h2>
+<p class="note" style="margin-top:0;">Count copper rows from the <b>top</b> of the stripboard. Each table row is one copper trace: solder the listed pin from each column into <b>any hole on that same row</b>. Use rows 1–8 only; row 9+ is unused (cut shorter for the enclosure if you like). A dash means that breakout has no connection on that row.</p>
 
-<table>
-<tr><th>From</th><th>To (breadboard)</th></tr>
-
-<tr><td colspan="2" style="background:#f3f4f6; font-weight:700; font-size:0.8rem; color:#555; padding:6px 10px;">ESP32 → breadboard (8 jumper wires)</td></tr>
-
+<div class="matrix-wrap">
+<table class="matrix">
+  <thead>
+    <tr>
+      <th class="m-corner" scope="col">Row</th>
+      <th class="m-corner" scope="col">Net</th>
+      <th class="m-corner" scope="col">Wire</th>
+      <th scope="col" class="module mod-esp">ESP32 DevKit<span class="mod-sub">USB at top · 30-pin</span></th>
+      <th scope="col" class="module mod-bme">BME280<span class="mod-sub">I²C + 3V3 rail</span></th>
+      <th scope="col" class="module mod-bh">BH1750<span class="mod-sub">I²C + 3V3 rail</span></th>
+      <th scope="col" class="module mod-pms">PMS5003<span class="mod-sub">5V UART</span></th>
+      <th scope="col" class="module mod-rain">MH-RD rain<span class="mod-sub">3V3 + AO</span></th>
+    </tr>
+  </thead>
+  <tbody>
 <tr>
-  <td><span class="pin" style="color:#e97a0b">3V3</span> <span style="color:#aaa; font-size:0.78rem;">(left col, pos 1)</span></td>
-  <td class="bb">top + rail (any hole)</td>
+  <th scope="row">1</th>
+  <td class="meta net"><span class="pin">GND</span></td>
+  <td class="wire-cell"><span class="wire-chip black">Black</span></td>
+  <td class="mod-esp"><span class="pin">GND</span> <span style="white-space:nowrap;font-size:0.9em;color:#475569;font-weight:600">(left rail · pin&nbsp;2 from top)</span></td>
+  <td class="mod-bme"><b>GND</b></td>
+  <td class="mod-bh"><b>GND</b></td>
+  <td class="mod-pms"><b>GND</b></td>
+  <td class="mod-rain"><b>GND</b></td>
 </tr>
 <tr>
-  <td><span class="pin" style="color:#555">GND</span> <span style="color:#aaa; font-size:0.78rem;">(left col, pos 2)</span></td>
-  <td class="bb">top − rail (any hole)</td>
+  <th scope="row">2</th>
+  <td class="meta net"><span class="pin">3V3</span></td>
+  <td class="wire-cell"><span class="wire-chip orange">Orange</span></td>
+  <td class="mod-esp"><span class="pin">3V3</span></td>
+  <td class="mod-bme"><b>VCC</b></td>
+  <td class="mod-bh"><b>VCC</b></td>
+  <td class="mod-pms na">—</td>
+  <td class="mod-rain"><b>VCC</b></td>
 </tr>
 <tr>
-  <td><span class="pin" style="color:#2563eb">D21</span> <span style="color:#aaa; font-size:0.78rem;">(left col, pos 11)</span></td>
-  <td class="bb">column 5 (any hole A5–E5)</td>
+  <th scope="row">3</th>
+  <td class="meta net">I²C <span class="pin">SDA</span></td>
+  <td class="wire-cell"><span class="wire-chip blue">Blue</span></td>
+  <td class="mod-esp"><span class="pin">D21</span></td>
+  <td class="mod-bme"><b>SDA</b></td>
+  <td class="mod-bh"><b>SDA</b></td>
+  <td class="mod-pms na">—</td>
+  <td class="mod-rain na">—</td>
 </tr>
 <tr>
-  <td><span class="pin" style="color:#b8960a">D22</span> <span style="color:#aaa; font-size:0.78rem;">(left col, pos 14)</span></td>
-  <td class="bb">column 10 (any hole A10–E10)</td>
+  <th scope="row">4</th>
+  <td class="meta net">I²C <span class="pin">SCL</span></td>
+  <td class="wire-cell"><span class="wire-chip yellow">Yellow</span></td>
+  <td class="mod-esp"><span class="pin">D22</span></td>
+  <td class="mod-bme"><b>SCL</b></td>
+  <td class="mod-bh"><b>SCL</b></td>
+  <td class="mod-pms na">—</td>
+  <td class="mod-rain na">—</td>
 </tr>
 <tr>
-  <td><span class="pin" style="color:#16a34a">RX2</span> <span style="color:#aaa; font-size:0.78rem;">(left col, pos 6)</span></td>
-  <td class="bb">column 15 (any hole A15–E15)</td>
+  <th scope="row">5</th>
+  <td class="meta net">UART PMS&nbsp;→ ESP</td>
+  <td class="wire-cell"><span class="wire-chip green">Green</span></td>
+  <td class="mod-esp"><span class="pin">RX2</span></td>
+  <td class="mod-bme na">—</td>
+  <td class="mod-bh na">—</td>
+  <td class="mod-pms"><b>TXD</b> <span style="opacity:.85">(TX)</span></td>
+  <td class="mod-rain na">—</td>
 </tr>
 <tr>
-  <td><span class="pin" style="color:#777">TX2</span> <span style="color:#aaa; font-size:0.78rem;">(left col, pos 7)</span></td>
-  <td class="bb">column 20 (any hole A20–E20)</td>
+  <th scope="row">6</th>
+  <td class="meta net">UART ESP&nbsp;→ PMS</td>
+  <td class="wire-cell"><span class="wire-chip grey">Grey</span></td>
+  <td class="mod-esp"><span class="pin">TX2</span></td>
+  <td class="mod-bme na">—</td>
+  <td class="mod-bh na">—</td>
+  <td class="mod-pms"><b>RXD</b> <span style="opacity:.85">(RX)</span></td>
+  <td class="mod-rain na">—</td>
 </tr>
 <tr>
-  <td><span class="pin" style="color:#dc2626">VIN</span> <span style="color:#aaa; font-size:0.78rem;">(right col, pos 1)</span></td>
-  <td class="bb">column 25 (any hole A25–E25)</td>
+  <th scope="row">7</th>
+  <td class="meta net">5&nbsp;V rail</td>
+  <td class="wire-cell"><span class="wire-chip red">Red</span></td>
+  <td class="mod-esp"><span class="pin">VIN</span> <span style="white-space:nowrap;font-size:0.9em;font-weight:600;color:#475569">(USB-backed)</span></td>
+  <td class="mod-bme na">—</td>
+  <td class="mod-bh na">—</td>
+  <td class="mod-pms"><b>VCC</b></td>
+  <td class="mod-rain na">—</td>
 </tr>
 <tr>
-  <td><span class="pin" style="color:#9333ea">D34</span> <span style="color:#aaa; font-size:0.78rem;">(right col, pos 12)</span></td>
-  <td class="bb">column 30 (any hole A30–E30)</td>
+  <th scope="row">8</th>
+  <td class="meta net">Rain analog</td>
+  <td class="wire-cell"><span class="wire-chip purple">Purple</span></td>
+  <td class="mod-esp"><span class="pin">D34</span> <span style="white-space:nowrap;font-size:0.9em;font-weight:600;color:#475569">(ADC1)</span></td>
+  <td class="mod-bme na">—</td>
+  <td class="mod-bh na">—</td>
+  <td class="mod-pms na">—</td>
+  <td class="mod-rain"><b>AO</b></td>
 </tr>
-
-<tr><td colspan="2" style="background:#f5f3ff; font-weight:700; font-size:0.8rem; color:#555; padding:6px 10px;"><span class="badge" style="background:#7c3aed;">PMS5003</span> → breadboard (4 wires)</td></tr>
-
-<tr>
-  <td>PMS VCC <span style="color:#dc2626;">(red)</span></td>
-  <td class="bb">column 25 (any hole A25–E25)</td>
-</tr>
-<tr>
-  <td>PMS GND <span style="color:#555;">(black)</span></td>
-  <td class="bb">top − rail (any hole)</td>
-</tr>
-<tr>
-  <td>PMS TX <span style="color:#16a34a;">(green)</span></td>
-  <td class="bb">column 15 (any hole A15–E15)</td>
-</tr>
-<tr>
-  <td>PMS RX <span style="color:#777;">(grey)</span></td>
-  <td class="bb">column 20 (any hole A20–E20)</td>
-</tr>
-
-<tr><td colspan="2" style="background:#ecfdf5; font-weight:700; font-size:0.8rem; color:#555; padding:6px 10px;"><span class="badge" style="background:#059669;">BME280</span> → breadboard (4 wires)</td></tr>
-
-<tr>
-  <td>BME VCC <span style="color:#e97a0b;">(orange)</span></td>
-  <td class="bb">top + rail (any hole)</td>
-</tr>
-<tr>
-  <td>BME GND <span style="color:#555;">(black)</span></td>
-  <td class="bb">top − rail (any hole)</td>
-</tr>
-<tr>
-  <td>BME SDA <span style="color:#2563eb;">(blue)</span></td>
-  <td class="bb">column 5 (any hole A5–E5)</td>
-</tr>
-<tr>
-  <td>BME SCL <span style="color:#b8960a;">(yellow)</span></td>
-  <td class="bb">column 10 (any hole A10–E10)</td>
-</tr>
-
-<tr><td colspan="2" style="background:#ecfeff; font-weight:700; font-size:0.8rem; color:#555; padding:6px 10px;"><span class="badge" style="background:#0891b2;">BH1750</span> → breadboard (4 wires)</td></tr>
-
-<tr>
-  <td>BH VCC <span style="color:#e97a0b;">(orange)</span></td>
-  <td class="bb">top + rail (any hole)</td>
-</tr>
-<tr>
-  <td>BH GND <span style="color:#555;">(black)</span></td>
-  <td class="bb">top − rail (any hole)</td>
-</tr>
-<tr>
-  <td>BH SDA <span style="color:#2563eb;">(blue)</span></td>
-  <td class="bb">column 5 (any hole A5–E5)</td>
-</tr>
-<tr>
-  <td>BH SCL <span style="color:#b8960a;">(yellow)</span></td>
-  <td class="bb">column 10 (any hole A10–E10)</td>
-</tr>
-
-<tr><td colspan="2" style="background:#fffbeb; font-weight:700; font-size:0.8rem; color:#555; padding:6px 10px;"><span class="badge" style="background:#d97706;">MH-RD rain</span> → breadboard (3 wires)</td></tr>
-
-<tr>
-  <td>Rain VCC <span style="color:#e97a0b;">(orange)</span></td>
-  <td class="bb">top + rail (any hole)</td>
-</tr>
-<tr>
-  <td>Rain GND <span style="color:#555;">(black)</span></td>
-  <td class="bb">top − rail (any hole)</td>
-</tr>
-<tr>
-  <td>Rain AO <span style="color:#9333ea;">(purple)</span></td>
-  <td class="bb">column 30 (any hole A30–E30)</td>
-</tr>
-
+</tbody>
 </table>
+</div>
+<p class="note"><strong>Colour key:</strong> column tints follow the breakout: <strong style="color:#1e40af">ESP32</strong> · <strong style="color:#047857">BME280</strong> · <strong style="color:#0f766e">BH1750</strong> · <strong style="color:#6d28d9">PMS5003</strong> · <strong style="color:#b45309">MH-RD rain</strong>. <strong>Wire</strong> chips match dupont sheath colour per row.<br><br><strong>23 connections</strong> to the stripboard: 8 ESP32 tails + 4 PMS5003 + 4 BME280 + 4 BH1750 + 3 MH-RD. MH-RD pad cable polarity does not matter; dry reads ~4095 on D34.</p>
+</div>
 
-<p class="note"><b>23 wires total.</b> Every ESP32 pin has exactly one wire. Every sensor pin has exactly one wire. Shared connections happen on the breadboard.</p>
+<!-- ==================== BUILD ORDER ==================== -->
+<div class="card">
+<h2>Build order</h2>
+<ol class="steps">
+<li>Mark rows 1–8 on the top of the board with pencil (count from the top).</li>
+<li><b>Row 1 (<span class="pin">GND</span>):</b> Into <b>any holes on row 1</b>, connect <span class="pin">GND</span> from ESP32 (left rail), BME280 <b>GND</b>, BH1750 <b>GND</b>, PMS5003 <b>GND</b>, and MH-RD <b>GND</b>. Spread holes so solder joints are not cramped.</li>
+<li><b>Row 2 (<span class="pin">3V3</span>):</b> ESP32 <span class="pin">3V3</span>, BME280 <b>VCC</b>, BH1750 <b>VCC</b>, MH-RD <b>VCC</b> → row 2.</li>
+<li><b>Row 3 (I²C <span class="pin">SDA</span>):</b> ESP32 <span class="pin">D21</span>, BME280 <b>SDA</b>, BH1750 <b>SDA</b> → row 3.</li>
+<li><b>Row 4 (I²C <span class="pin">SCL</span>):</b> ESP32 <span class="pin">D22</span>, BME280 <b>SCL</b>, BH1750 <b>SCL</b> → row 4.</li>
+<li><b>Row 5 (PMS TX line):</b> ESP32 <span class="pin">RX2</span> + PMS5003 <b>TXD</b> (green) → row 5.</li>
+<li><b>Row 6 (PMS RX line):</b> ESP32 <span class="pin">TX2</span> + PMS5003 <b>RXD</b> (grey) → row 6.</li>
+<li><b>Row 7 (5&nbsp;V):</b> ESP32 <span class="pin">VIN</span> + PMS5003 <b>VCC</b> (red) → row 7.</li>
+<li><b>Row 8 (rain analog):</b> ESP32 <span class="pin">D34</span> + MH-RD <b>AO</b> (purple) → row 8.</li>
+<li>Check: no solder bridges between <b>adjacent rows</b> (use a phone torch on the copper side).</li>
+<li>Plug USB, confirm BME/BH/rain/PM on serial or relay.</li>
+<li>Mount board in enclosure; zip-tie or hot-glue wire exits so nothing pulls out.</li>
+</ol>
+</div>
+
+<!-- ==================== ESP32 PINOUT ==================== -->
+<div class="card">
+<h2>ESP32 pin reference (USB at top)</h2>
+<table>
+<tr><th>LEFT (top → bottom)</th><th>RIGHT (top → bottom)</th></tr>
+<tr><td>1. <span class="pin" style="color:#e97a0b">3V3</span> → row 2</td><td>1. <span class="pin" style="color:#dc2626">VIN</span> → row 7</td></tr>
+<tr><td>2. <span class="pin" style="color:#555">GND</span> → row 1</td><td>2. <span class="pin">GND</span> (not used)</td></tr>
+<tr><td>…</td><td>…</td></tr>
+<tr><td>6. <span class="pin" style="color:#16a34a">RX2</span> → row 5</td><td>…</td></tr>
+<tr><td>7. <span class="pin" style="color:#777">TX2</span> → row 6</td><td>…</td></tr>
+<tr><td>11. <span class="pin" style="color:#2563eb">D21</span> → row 3</td><td>…</td></tr>
+<tr><td>14. <span class="pin" style="color:#b8960a">D22</span> → row 4</td><td>…</td></tr>
+<tr><td>…</td><td>12. <span class="pin" style="color:#9333ea">D34</span> → row 8</td></tr>
+</table>
 </div>
 
 <!-- ==================== FIRMWARE ==================== -->
 <div class="card">
-<h2>Firmware</h2>
-<p class="note" style="margin-top:0;">In <code>include/secrets_stationN.h</code>:</p>
-<div class="code">#define ENABLE_BME280  true
-#define ENABLE_BH1750  true
-#define ENABLE_RAIN    true
-#define ENABLE_PMS     true
-#define PMS_MODEL      "PMS5003"
+<h2>Flash firmware</h2>
+<div class="code"># MVP instance envs (same model firmware, different station identity)
+pio run -e esp32dev_mvp1 --target upload
+pio device monitor -e esp32dev_mvp1
 
-#define ENABLE_DHT     false
-#define ENABLE_MQ      false
-#define ENABLE_OLED    false
-#define ENABLE_SPS30   false
-#define ENABLE_SDS011  false
-#define ENABLE_BMP280  false</div>
-<div class="code">pio run -e esp32dev_station3 --target upload
-pio device monitor -e esp32dev_station3</div>
-<p class="note">Change <code>station3</code> to your station number. Fill in WiFi, Nostr key, etc.</p>
+# Example: station 2/5
+pio run -e esp32dev_mvp2 --target upload
+pio device monitor -e esp32dev_mvp2</div>
+<p class="note">Use <code>esp32dev_mvp1</code> ... <code>esp32dev_mvp5</code>. All use the same MVP model firmware; each points at its own <code>secrets_station_mvpN.h</code>. Set <code>ENABLE_RAIN</code> false until MH-RD AO is on row 8 (floating D34 looks like bogus rain).</p>
 </div>
 
 </div>
