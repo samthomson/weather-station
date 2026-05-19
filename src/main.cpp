@@ -240,6 +240,8 @@ bool displayAvailable = false;
 String nostrPubkey = "";
 uint8_t privKeyBytes[32];
 uint8_t pubKeyBytes[32];
+// millis() of last successful publish; surfaced on the dashboard.
+unsigned long lastPublishMs = 0;
 
 // Forward declarations
 void connectWiFi();
@@ -744,6 +746,7 @@ void loop() {
         Serial.println("Sending reading event...");
         String msg = "[\"EVENT\"," + event + "]";
         webSocket.sendTXT(msg);
+        lastPublishMs = millis();
       }
       sendMetadataEvent();
     }
@@ -1431,6 +1434,7 @@ static void publishDashboardStatus() {
   s.ws_connected = wsConnected;
   s.pubkey_hex = nostrPubkey;
   s.device_id  = getDeviceId();
+  s.last_post_ms = lastPublishMs;
 
   #if ENABLE_BME280
     if (cfg.en_bme280 && (bmeHasReading || bmpHasReading)) {

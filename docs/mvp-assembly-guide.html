@@ -6,35 +6,36 @@
 <title>Weather Station — Stripboard Build</title>
 <style>
   :root{
-    --ink:#1a1714;--bg:#221d18;--surface:#2e2822;--surface-hi:#3d352d;
-    --border:#463d33;--border-hi:#5b5145;
-    --text:#f3ece1;--text-muted:#b0a89c;--text-dim:#857c70;
-    --orange:#f0a25c;--orange-hi:#f5b779;
-    --purple:#b59cd9;--purple-hi:#c8b3e5;
+    --ink:#2a2521;--bg:#fbf7f0;--surface:#ffffff;--surface-hi:#f4ede0;
+    --border:#e2dac8;--border-hi:#c8bca5;
+    --text:#2a2521;--text-muted:#766c5f;--text-dim:#9a8f80;
+    --orange:#d97e2e;--orange-hi:#c66c1f;
+    --purple:#7c5fb8;--purple-hi:#6a4ca8;
+    --code-bg:#2a2521;--code-fg:#f3ece1;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  html,body { background: var(--ink); }
-  body { font-family: -apple-system, 'Inter', 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); line-height: 1.45; }
+  html,body { background: var(--bg); }
+  body { font-family: -apple-system, 'Inter', 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); line-height: 1.5; }
   .page { max-width: 980px; margin: 0 auto; padding: 0 20px 24px; }
   .brand-bar { height: 4px; background: linear-gradient(90deg, var(--orange) 0%, var(--orange) 50%, var(--purple) 100%); margin: 0 -20px 18px; }
   h1 { text-align: center; font-size: 1.4rem; margin-bottom: 4px; color: var(--orange); font-weight: 700; letter-spacing: -.01em; }
   h1 .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--purple); margin: 0 8px 2px 0; vertical-align: middle; }
-  .sub { text-align: center; color: var(--text-dim); font-size: 0.85rem; margin-bottom: 24px; }
-  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 22px; margin-bottom: 18px; }
+  .sub { text-align: center; color: var(--text-muted); font-size: 0.85rem; margin-bottom: 24px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 22px; margin-bottom: 18px; box-shadow: 0 1px 3px rgba(42,37,33,.04); }
   .card h2 { font-size: 0.85rem; margin-bottom: 14px; color: var(--purple); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
   table { width: 100%; border-collapse: collapse; font-size: 0.85rem; color: var(--text); }
-  th { background: var(--ink); color: var(--text); padding: 8px 10px; text-align: left; font-weight: 700; border-bottom: 1px solid var(--border); }
+  th { background: var(--surface-hi); color: var(--text); padding: 8px 10px; text-align: left; font-weight: 700; border-bottom: 1px solid var(--border); }
   td { padding: 6px 10px; border-bottom: 1px solid var(--border); }
   tr:last-child td { border-bottom: none; }
-  .pin { font-family: 'SF Mono', ui-monospace, monospace; font-weight: 800; color: var(--orange); }
+  .pin { font-family: 'SF Mono', ui-monospace, monospace; font-weight: 800; color: var(--orange-hi); }
   .row { font-family: 'SF Mono', ui-monospace, monospace; font-weight: 700; background: var(--surface-hi); color: var(--text); padding: 2px 8px; border-radius: 4px; }
-  .badge { display: inline-block; color: var(--ink); background: var(--orange); padding: 1px 8px; border-radius: 5px; font-size: 0.78rem; font-weight: 800; }
+  .badge { display: inline-block; color: #fff; background: var(--orange); padding: 1px 8px; border-radius: 5px; font-size: 0.78rem; font-weight: 800; }
   .note { font-size: 0.85rem; color: var(--text-muted); margin-top: 10px; line-height: 1.6; }
-  .code { background: var(--ink); color: var(--text); border: 1px solid var(--border); padding: 14px; border-radius: 10px; font-family: 'SF Mono', ui-monospace, monospace; font-size: 0.82rem; white-space: pre; margin: 8px 0; }
+  .code { background: var(--code-bg); color: var(--code-fg); border: 1px solid var(--border); padding: 14px; border-radius: 10px; font-family: 'SF Mono', ui-monospace, monospace; font-size: 0.82rem; white-space: pre; margin: 8px 0; }
   ol.steps { font-size: 0.9rem; line-height: 1.7; padding-left: 22px; color: var(--text); }
   ol.steps li { margin-bottom: 6px; }
-  ol.steps li b { color: var(--orange); }
-  ::selection { background: var(--orange); color: var(--ink); }
+  ol.steps li b { color: var(--orange-hi); }
+  ::selection { background: var(--orange); color: #fff; }
   table.matrix td, table.matrix th { vertical-align: middle; padding: 10px 8px; }
   table.matrix thead th {
     border-bottom: none;
@@ -84,17 +85,11 @@
     color: var(--text);
     text-align: left;
   }
-  table.matrix tbody td.wire-cell {
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
-    text-align: center;
-  }
-
-  table.matrix tbody td.mod-esp  { background: #1c2538; border-bottom: 1px solid #2a3854; color: #c8d6ff; text-align: left;   font-weight: 600; }
-  table.matrix tbody td.mod-bme  { background: #1a2b25; border-bottom: 1px solid #244039; color: #b8e6cf; text-align: center; font-weight: 700; }
-  table.matrix tbody td.mod-bh   { background: #182d33; border-bottom: 1px solid #1f414a; color: #b2e5e7; text-align: center; font-weight: 700; }
-  table.matrix tbody td.mod-pms  { background: #2c2238; border-bottom: 1px solid #3d3050; color: #d8c8ed; text-align: center; font-weight: 700; }
-  table.matrix tbody td.mod-rain { background: #3a2818; border-bottom: 1px solid #5a3a20; color: #f5cb9c; text-align: center; font-weight: 700; }
+  table.matrix tbody td.mod-esp  { background: #eff6ff; border-bottom: 1px solid #bfdbfe; color: #1e3a8a; text-align: left;   font-weight: 600; }
+  table.matrix tbody td.mod-bme  { background: #ecfdf5; border-bottom: 1px solid #a7f3d0; color: #064e3b; text-align: center; font-weight: 700; }
+  table.matrix tbody td.mod-bh   { background: #ecfeff; border-bottom: 1px solid #a5f3fc; color: #134e4a; text-align: center; font-weight: 700; }
+  table.matrix tbody td.mod-pms  { background: #ece5f6; border-bottom: 1px solid #c8b3e5; color: #4c1d95; text-align: center; font-weight: 700; }
+  table.matrix tbody td.mod-rain { background: #fbe9d2; border-bottom: 1px solid #f5c79a; color: #78350f; text-align: center; font-weight: 700; }
 
   table.matrix tbody td.na {
     color: var(--text-dim);
@@ -121,13 +116,21 @@
   .wire-chip.grey   { background: #64748b; color: #f1f5f9; border-color: #475569; }
   .wire-chip.red    { background: #dc2626; color: #fef2f2; border-color: #b91c1c; }
   .wire-chip.purple { background: #7c3aed; color: #f5f3ff; border-color: #6d28d9; }
+  .wire-chip.white  { background: #f8fafc; color: #1e293b; border-color: #94a3b8; }
+  .wire-chip.wire-inline {
+    padding: 2px 7px;
+    font-size: 0.62rem;
+    margin-right: 5px;
+    vertical-align: middle;
+  }
+  table.matrix tbody td.conn { white-space: nowrap; }
 
   .matrix-wrap {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     border-radius: 12px;
     border: 1px solid var(--border);
-    box-shadow: 0 4px 24px rgba(0, 0, 0, .25);
+    box-shadow: 0 4px 24px rgba(42, 37, 33, .06);
   }
   table.matrix { border-radius: 12px; overflow: hidden; font-size: 0.78rem; table-layout: fixed; }
   table.matrix tbody tr:last-child th,
@@ -163,7 +166,6 @@ Hold the board with holes up, copper strips on the bottom (you solder on the cop
     <tr>
       <th class="m-corner" scope="col">Row</th>
       <th class="m-corner" scope="col">Net</th>
-      <th class="m-corner" scope="col">Wire</th>
       <th scope="col" class="module mod-esp">ESP32 DevKit<span class="mod-sub">USB at top · 30-pin</span></th>
       <th scope="col" class="module mod-bme">BME280<span class="mod-sub">I²C + 3V3 rail</span></th>
       <th scope="col" class="module mod-bh">BH1750<span class="mod-sub">I²C + 3V3 rail</span></th>
@@ -175,87 +177,79 @@ Hold the board with holes up, copper strips on the bottom (you solder on the cop
 <tr>
   <th scope="row">1</th>
   <td class="meta net"><span class="pin">GND</span></td>
-  <td class="wire-cell"><span class="wire-chip black">Black</span></td>
-  <td class="mod-esp"><span class="pin">GND</span> <span style="white-space:nowrap;font-size:0.9em;color:#475569;font-weight:600">(left rail · pin&nbsp;2 from top)</span></td>
-  <td class="mod-bme"><b>GND</b></td>
-  <td class="mod-bh"><b>GND</b></td>
-  <td class="mod-pms"><b>GND</b></td>
-  <td class="mod-rain"><b>GND</b></td>
+  <td class="mod-esp conn"><span class="wire-chip black wire-inline">Black</span><span class="pin">GND</span> <span style="white-space:nowrap;font-size:0.9em;color:#475569;font-weight:600">(left rail · pin&nbsp;2)</span></td>
+  <td class="mod-bme conn"><span class="wire-chip black wire-inline">Black</span><b>GND</b></td>
+  <td class="mod-bh conn"><span class="wire-chip black wire-inline">Black</span><b>GND</b></td>
+  <td class="mod-pms conn"><span class="wire-chip black wire-inline">Black</span><b>GND</b></td>
+  <td class="mod-rain conn"><span class="wire-chip black wire-inline">Black</span><b>GND</b></td>
 </tr>
 <tr>
   <th scope="row">2</th>
   <td class="meta net"><span class="pin">3V3</span></td>
-  <td class="wire-cell"><span class="wire-chip orange">Orange</span></td>
-  <td class="mod-esp"><span class="pin">3V3</span></td>
-  <td class="mod-bme"><b>VCC</b></td>
-  <td class="mod-bh"><b>VCC</b></td>
+  <td class="mod-esp conn"><span class="wire-chip orange wire-inline">Orange</span><span class="pin">3V3</span></td>
+  <td class="mod-bme conn"><span class="wire-chip orange wire-inline">Orange</span><b>VCC</b></td>
+  <td class="mod-bh conn"><span class="wire-chip orange wire-inline">Orange</span><b>VCC</b></td>
   <td class="mod-pms na">—</td>
-  <td class="mod-rain"><b>VCC</b></td>
+  <td class="mod-rain conn"><span class="wire-chip orange wire-inline">Orange</span><b>VCC</b></td>
 </tr>
 <tr>
   <th scope="row">3</th>
   <td class="meta net">I²C <span class="pin">SDA</span></td>
-  <td class="wire-cell"><span class="wire-chip blue">Blue</span></td>
-  <td class="mod-esp"><span class="pin">D21</span></td>
-  <td class="mod-bme"><b>SDA</b></td>
-  <td class="mod-bh"><b>SDA</b></td>
+  <td class="mod-esp conn"><span class="wire-chip purple wire-inline">Purple</span><span class="pin">D21</span></td>
+  <td class="mod-bme conn"><span class="wire-chip purple wire-inline">Purple</span><b>SDA</b></td>
+  <td class="mod-bh conn"><span class="wire-chip purple wire-inline">Purple</span><b>SDA</b></td>
   <td class="mod-pms na">—</td>
   <td class="mod-rain na">—</td>
 </tr>
 <tr>
   <th scope="row">4</th>
   <td class="meta net">I²C <span class="pin">SCL</span></td>
-  <td class="wire-cell"><span class="wire-chip yellow">Yellow</span></td>
-  <td class="mod-esp"><span class="pin">D22</span></td>
-  <td class="mod-bme"><b>SCL</b></td>
-  <td class="mod-bh"><b>SCL</b></td>
+  <td class="mod-esp conn"><span class="wire-chip white wire-inline">White</span><span class="pin">D22</span></td>
+  <td class="mod-bme conn"><span class="wire-chip white wire-inline">White</span><b>SCL</b></td>
+  <td class="mod-bh conn"><span class="wire-chip white wire-inline">White</span><b>SCL</b></td>
   <td class="mod-pms na">—</td>
   <td class="mod-rain na">—</td>
 </tr>
 <tr>
   <th scope="row">5</th>
   <td class="meta net">UART PMS&nbsp;→ ESP</td>
-  <td class="wire-cell"><span class="wire-chip green">Green</span></td>
-  <td class="mod-esp"><span class="pin">RX2</span></td>
+  <td class="mod-esp conn"><span class="wire-chip green wire-inline">Green</span><span class="pin">RX2</span></td>
   <td class="mod-bme na">—</td>
   <td class="mod-bh na">—</td>
-  <td class="mod-pms"><b>TXD</b> <span style="opacity:.85">(TX)</span></td>
+  <td class="mod-pms conn"><span class="wire-chip green wire-inline">Green</span><b>TXD</b> <span style="opacity:.85">(TX)</span></td>
   <td class="mod-rain na">—</td>
 </tr>
 <tr>
   <th scope="row">6</th>
   <td class="meta net">UART ESP&nbsp;→ PMS</td>
-  <td class="wire-cell"><span class="wire-chip grey">Grey</span></td>
-  <td class="mod-esp"><span class="pin">TX2</span></td>
+  <td class="mod-esp conn"><span class="wire-chip grey wire-inline">Grey</span><span class="pin">TX2</span></td>
   <td class="mod-bme na">—</td>
   <td class="mod-bh na">—</td>
-  <td class="mod-pms"><b>RXD</b> <span style="opacity:.85">(RX)</span></td>
+  <td class="mod-pms conn"><span class="wire-chip grey wire-inline">Grey</span><b>RXD</b> <span style="opacity:.85">(RX)</span></td>
   <td class="mod-rain na">—</td>
 </tr>
 <tr>
   <th scope="row">7</th>
-  <td class="meta net">5&nbsp;V rail</td>
-  <td class="wire-cell"><span class="wire-chip red">Red</span></td>
-  <td class="mod-esp"><span class="pin">VIN</span> <span style="white-space:nowrap;font-size:0.9em;font-weight:600;color:#475569">(USB-backed)</span></td>
+  <td class="meta net"><span class="pin">5V</span></td>
+  <td class="mod-esp conn"><span class="wire-chip red wire-inline">Red</span><span class="pin">VIN</span> <span style="white-space:nowrap;font-size:0.9em;font-weight:600;color:#475569">(USB-backed)</span></td>
   <td class="mod-bme na">—</td>
   <td class="mod-bh na">—</td>
-  <td class="mod-pms"><b>VCC</b></td>
+  <td class="mod-pms conn"><span class="wire-chip red wire-inline">Red</span><b>VCC</b></td>
   <td class="mod-rain na">—</td>
 </tr>
 <tr>
   <th scope="row">8</th>
   <td class="meta net">Rain analog</td>
-  <td class="wire-cell"><span class="wire-chip purple">Purple</span></td>
-  <td class="mod-esp"><span class="pin">D34</span> <span style="white-space:nowrap;font-size:0.9em;font-weight:600;color:#475569">(ADC1)</span></td>
+  <td class="mod-esp conn"><span class="wire-chip blue wire-inline">Blue</span><span class="pin">D34</span> <span style="white-space:nowrap;font-size:0.9em;font-weight:600;color:#475569">(ADC1)</span></td>
   <td class="mod-bme na">—</td>
   <td class="mod-bh na">—</td>
   <td class="mod-pms na">—</td>
-  <td class="mod-rain"><b>AO</b></td>
+  <td class="mod-rain conn"><span class="wire-chip blue wire-inline">Blue</span><b>AO</b></td>
 </tr>
 </tbody>
 </table>
 </div>
-<p class="note"><strong>Colour key:</strong> column tints follow the breakout: <strong style="color:#1e40af">ESP32</strong> · <strong style="color:#047857">BME280</strong> · <strong style="color:#0f766e">BH1750</strong> · <strong style="color:#6d28d9">PMS5003</strong> · <strong style="color:#b45309">MH-RD rain</strong>. <strong>Wire</strong> chips match dupont sheath colour per row.<br><br><strong>23 connections</strong> to the stripboard: 8 ESP32 tails + 4 PMS5003 + 4 BME280 + 4 BH1750 + 3 MH-RD. MH-RD pad cable polarity does not matter; dry reads ~4095 on D34.</p>
+<p class="note"><strong>Power (industry standard):</strong> <span class="wire-chip black wire-inline">Black</span> GND · <span class="wire-chip red wire-inline">Red</span> 5V — label on the stripboard edge.<br><strong>Project theme</strong> (orange · purple · white · grey — see README): <span class="wire-chip orange wire-inline">Orange</span> 3V3 (×4) · <span class="wire-chip purple wire-inline">Purple</span> SDA (×3) · <span class="wire-chip white wire-inline">White</span> SCL (×3) · <span class="wire-chip grey wire-inline">Grey</span> ESP TX→PMS RX (×2).<br><strong>Other signals:</strong> <span class="wire-chip green wire-inline">Green</span> PMS TX→ESP RX (×2) · <span class="wire-chip blue wire-inline">Blue</span> rain AO (×2). UART = two rows, two colours.<br><br><strong>23 connections</strong> to the stripboard. MH-RD pad cable polarity does not matter; dry reads ~4095 on D34.</p>
 </div>
 
 <!-- ==================== BUILD ORDER ==================== -->
@@ -265,12 +259,12 @@ Hold the board with holes up, copper strips on the bottom (you solder on the cop
 <li>Mark rows 1–8 on the top of the board with pencil (count from the top).</li>
 <li><b>Row 1 (<span class="pin">GND</span>):</b> Into <b>any holes on row 1</b>, connect <span class="pin">GND</span> from ESP32 (left rail), BME280 <b>GND</b>, BH1750 <b>GND</b>, PMS5003 <b>GND</b>, and MH-RD <b>GND</b>. Spread holes so solder joints are not cramped.</li>
 <li><b>Row 2 (<span class="pin">3V3</span>):</b> ESP32 <span class="pin">3V3</span>, BME280 <b>VCC</b>, BH1750 <b>VCC</b>, MH-RD <b>VCC</b> → row 2.</li>
-<li><b>Row 3 (I²C <span class="pin">SDA</span>):</b> ESP32 <span class="pin">D21</span>, BME280 <b>SDA</b>, BH1750 <b>SDA</b> → row 3.</li>
-<li><b>Row 4 (I²C <span class="pin">SCL</span>):</b> ESP32 <span class="pin">D22</span>, BME280 <b>SCL</b>, BH1750 <b>SCL</b> → row 4.</li>
-<li><b>Row 5 (PMS TX line):</b> ESP32 <span class="pin">RX2</span> + PMS5003 <b>TXD</b> (green) → row 5.</li>
-<li><b>Row 6 (PMS RX line):</b> ESP32 <span class="pin">TX2</span> + PMS5003 <b>RXD</b> (grey) → row 6.</li>
-<li><b>Row 7 (5&nbsp;V):</b> ESP32 <span class="pin">VIN</span> + PMS5003 <b>VCC</b> (red) → row 7.</li>
-<li><b>Row 8 (rain analog):</b> ESP32 <span class="pin">D34</span> + MH-RD <b>AO</b> (purple) → row 8.</li>
+<li><b>Row 3 (I²C <span class="pin">SDA</span>, purple):</b> ESP32 <span class="pin">D21</span>, BME280 <b>SDA</b>, BH1750 <b>SDA</b> → row 3.</li>
+<li><b>Row 4 (I²C <span class="pin">SCL</span>, white):</b> ESP32 <span class="pin">D22</span>, BME280 <b>SCL</b>, BH1750 <b>SCL</b> → row 4.</li>
+<li><b>Row 5 (PMS TX→ESP, green):</b> PMS5003 <b>TXD</b> + ESP32 <span class="pin">RX2</span> → row 5.</li>
+<li><b>Row 6 (ESP TX→PMS, grey):</b> ESP32 <span class="pin">TX2</span> + PMS5003 <b>RXD</b> → row 6.</li>
+<li><b>Row 7 (5&nbsp;V, red):</b> ESP32 <span class="pin">VIN</span> + PMS5003 <b>VCC</b> → row 7.</li>
+<li><b>Row 8 (rain analog, blue):</b> ESP32 <span class="pin">D34</span> + MH-RD <b>AO</b> → row 8.</li>
 <li>Check: no solder bridges between <b>adjacent rows</b> (use a phone torch on the copper side).</li>
 <li>Plug USB, confirm BME/BH/rain/PM on serial or relay.</li>
 <li>Mount board in enclosure; zip-tie or hot-glue wire exits so nothing pulls out.</li>
@@ -286,10 +280,10 @@ Hold the board with holes up, copper strips on the bottom (you solder on the cop
 <tr><td>2. <span class="pin" style="color:#555">GND</span> → row 1</td><td>2. <span class="pin">GND</span> (not used)</td></tr>
 <tr><td>…</td><td>…</td></tr>
 <tr><td>6. <span class="pin" style="color:#16a34a">RX2</span> → row 5</td><td>…</td></tr>
-<tr><td>7. <span class="pin" style="color:#777">TX2</span> → row 6</td><td>…</td></tr>
-<tr><td>11. <span class="pin" style="color:#2563eb">D21</span> → row 3</td><td>…</td></tr>
-<tr><td>14. <span class="pin" style="color:#b8960a">D22</span> → row 4</td><td>…</td></tr>
-<tr><td>…</td><td>12. <span class="pin" style="color:#9333ea">D34</span> → row 8</td></tr>
+<tr><td>7. <span class="pin" style="color:#64748b">TX2</span> → row 6</td><td>…</td></tr>
+<tr><td>11. <span class="pin" style="color:#7c3aed">D21</span> → row 3</td><td>…</td></tr>
+<tr><td>14. <span class="pin" style="color:#64748b">D22</span> → row 4</td><td>…</td></tr>
+<tr><td>…</td><td>12. <span class="pin" style="color:#2563eb">D34</span> → row 8</td></tr>
 </table>
 </div>
 
