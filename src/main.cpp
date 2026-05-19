@@ -712,22 +712,24 @@ void loop() {
 
   uint32_t postIntervalMs = cfg.post_interval_ms > 10000 ? cfg.post_interval_ms : 60000;
   if (now - lastPost > postIntervalMs) {
-    // Check if we have any valid sensor data
+    // Do we have any valid reading to publish? Each validator already returns
+    // false when the sensor is runtime-disabled (because nothing wrote to the
+    // backing globals), so we don't re-check cfg.en_* here.
     bool hasData = false;
     #if ENABLE_DHT
       hasData = hasData || (t > 0);
     #endif
     #if ENABLE_BME280
-      hasData = hasData || (cfg.en_bme280 && enviroReadingOkForNostr());
+      hasData = hasData || enviroReadingOkForNostr();
     #endif
     #if ENABLE_BH1750
-      hasData = hasData || (cfg.en_bh1750 && bh1750Valid());
+      hasData = hasData || bh1750Valid();
     #endif
     #if ENABLE_RAIN
-      hasData = hasData || (cfg.en_rain && rainValue > 0);
+      hasData = hasData || (rainValue > 0);
     #endif
     #if ENABLE_PMS
-      hasData = hasData || (cfg.en_pms && pm2_5 > 0);
+      hasData = hasData || (pm2_5 > 0);
     #endif
     #if ENABLE_SPS30
       hasData = hasData || sps30DataReceived;
