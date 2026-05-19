@@ -42,6 +42,9 @@
 #include <Adafruit_SSD1306.h>
 #include <WebSocketsClient.h>
 
+#include "config_store.h"
+#include "web_dashboard.h"
+
 #ifdef ESP32
   #include <mbedtls/sha256.h>
   #include "uECC.h"
@@ -78,19 +81,15 @@ static const uint8_t TAG_AUX[32] = {
   0x5f, 0x21, 0xa9, 0x93, 0x01, 0x6c, 0x3a, 0xba
 };
 
-char ssid[] = WIFI_SSID;
-char pass[] = WIFI_PASS;
-const char* nostrRelayHost = NOSTR_RELAY_HOST;
-const uint16_t nostrRelayPort = 443;
-const char* nostrRelayPath = "/";
-const char* nostrPrivateKeyHex = NOSTR_PRIVKEY;
-const char* stationName = STATION_NAME;
-const char* stationDescription = STATION_DESCRIPTION;
-const char* stationGeohash = STATION_GEOHASH;
-const char* stationElevation = STATION_ELEVATION;
-const char* stationPower = STATION_POWER;
-const char* stationConnectivity = STATION_CONNECTIVITY;
-const unsigned long POST_INTERVAL = 60000;
+// All user-settable values come from config_store::current(); the compile-time
+// #defines in SECRETS_FILE are only consulted on first boot to seed NVS.
+// Default values for things that aren't user-settable from the dashboard yet:
+const uint16_t NOSTR_DEFAULT_TLS_PORT = 443;
+const uint16_t NOSTR_DEFAULT_WS_PORT  = 80;
+
+// Parsed relay URL kept in sync with config_store::current().nostr_relay.
+struct RelayURL { String host; uint16_t port; String path; bool ssl; };
+static RelayURL currentRelay;
 
 // Nostr tag names (standardized)
 const char* TAG_TEMP = "temp";
@@ -245,6 +244,14 @@ uint8_t pubKeyBytes[32];
 // Forward declarations
 void connectWiFi();
 void setupNostrRelay();
+static RelayURL parseRelayUrl(const String& url);
+static void applyConfigChanges(bool wifiChanged, bool relayChanged, bool keyChanged, bool sensorsChanged, bool intervalChanged);
+static void publishDashboardStatus();
+static void initRuntimeSensors();
+static WxConfig buildFactoryDefaults();
+// 6-char uppercase hex suffix of the eFuse MAC. Stable per physical board,
+// burned at factory, identical to the AP SSID suffix.
+static String getDeviceId();
 void webSocketEvent(WStype_t type, uint8_t* payload, size_t length);
 void pmReadData();
 #if ENABLE_SPS30
@@ -466,24 +473,42 @@ void setup() {
   delay(1000);
   randomSeed(analogRead(0) ^ micros());
   uECC_set_rng(&RNG);
-  
+
   Serial.println("\n=== Weather Station (Schnorr) ===");
-  
-  // Initialize PM sensor serial port (if enabled)
+
+  // Load (or first-boot seed) the user-settable configuration.
+  config_store::begin(buildFactoryDefaults());
+  WxConfig& cfg = config_store::current();
+  currentRelay = parseRelayUrl(cfg.nostr_relay);
+
+  // Bring up the always-on AP + captive portal + HTTP dashboard. STA gets
+  // started in connectWiFi() below.
+  DashboardCallbacks dcb;
+  dcb.onApply = &applyConfigChanges;
+  dcb.onRestart = []() { ESP.restart(); };
+  dcb.onFactoryReset = []() { config_store::factoryReset(); ESP.restart(); };
+  dcb.onRegenerateKey = []() { applyConfigChanges(false, false, true, false, false); };
+  web_dashboard::begin(dcb);
+
+  // Initialize PM sensor serial port (if compiled in and user enabled it)
   #if ENABLE_PMS
-    #ifdef ESP32
-      PMS_SERIAL.begin(9600, SERIAL_8N1, 16, 17);  // RX=GPIO16, TX=GPIO17
-      Serial.println("ESP32: Using Hardware Serial (UART2)");
-    #else
-      PMS_SERIAL.begin(9600);  // D5/D6 on ESP8266
-      Serial.println("ESP8266: Using Software Serial");
-    #endif
-    Serial.println("PMS sensor enabled");
+    if (cfg.en_pms) {
+      #ifdef ESP32
+        PMS_SERIAL.begin(9600, SERIAL_8N1, 16, 17);
+        Serial.println("ESP32: Using Hardware Serial (UART2)");
+      #else
+        PMS_SERIAL.begin(9600);
+        Serial.println("ESP8266: Using Software Serial");
+      #endif
+      Serial.println("PMS sensor enabled");
+    } else {
+      Serial.println("PMS sensor disabled (runtime)");
+    }
   #else
-    Serial.println("PMS sensor disabled");
+    Serial.println("PMS sensor disabled (compile-time)");
   #endif
-  
-  // Initialize DHT sensor (if enabled)
+
+  // Initialize DHT sensor (if compiled in)
   #if ENABLE_DHT
     dht.begin();
     Serial.println("DHT sensor enabled");
@@ -523,48 +548,57 @@ void setup() {
     Serial.println("SDS011 enabled (UART)");
   #endif
 
-  // Initialize BME280/BMP280 sensor (if enabled)
+  // Initialize BME280/BMP280 sensor (compiled in + user-enabled)
   #if ENABLE_BME280
-    // Try BME280 first (has humidity)
-    if (bme.begin(0x76)) {
-      bmeAvailable = true;
-      Serial.println("BME280 enabled (addr 0x76)");
-    } else if (bme.begin(0x77)) {
-      bmeAvailable = true;
-      Serial.println("BME280 enabled (addr 0x77)");
-    }
-    // If BME280 not found, try BMP280 (no humidity)
-    else if (bmp.begin(0x76)) {
-      bmpAvailable = true;
-      Serial.println("BMP280 enabled (addr 0x76) - no humidity");
-    } else if (bmp.begin(0x77)) {
-      bmpAvailable = true;
-      Serial.println("BMP280 enabled (addr 0x77) - no humidity");
+    if (cfg.en_bme280) {
+      if (bme.begin(0x76)) {
+        bmeAvailable = true;
+        Serial.println("BME280 enabled (addr 0x76)");
+      } else if (bme.begin(0x77)) {
+        bmeAvailable = true;
+        Serial.println("BME280 enabled (addr 0x77)");
+      } else if (bmp.begin(0x76)) {
+        bmpAvailable = true;
+        Serial.println("BMP280 enabled (addr 0x76) - no humidity");
+      } else if (bmp.begin(0x77)) {
+        bmpAvailable = true;
+        Serial.println("BMP280 enabled (addr 0x77) - no humidity");
+      } else {
+        Serial.println("BME280/BMP280 not found - continuing without it");
+      }
     } else {
-      Serial.println("BME280/BMP280 not found - continuing without it");
+      Serial.println("BME280 sensor disabled (runtime)");
     }
   #else
-    Serial.println("BME280 sensor disabled");
+    Serial.println("BME280 sensor disabled (compile-time)");
   #endif
 
-  // Initialize BH1750 light sensor (if enabled)
+  // Initialize BH1750 light sensor (compiled in + user-enabled)
   #if ENABLE_BH1750
-    if (lightMeter.begin(BH1750::CONTINUOUS_HIGH_RES_MODE)) {
-      bh1750Available = true;
-      Serial.println("BH1750 light sensor enabled");
+    if (cfg.en_bh1750) {
+      if (lightMeter.begin(BH1750::CONTINUOUS_HIGH_RES_MODE)) {
+        bh1750Available = true;
+        Serial.println("BH1750 light sensor enabled");
+      } else {
+        Serial.println("BH1750 not found - continuing without it");
+      }
     } else {
-      Serial.println("BH1750 not found - continuing without it");
+      Serial.println("BH1750 sensor disabled (runtime)");
     }
   #else
-    Serial.println("BH1750 sensor disabled");
+    Serial.println("BH1750 sensor disabled (compile-time)");
   #endif
-  
-  // Initialize rain sensor (if enabled)
+
+  // Initialize rain sensor (compiled in + user-enabled)
   #if ENABLE_RAIN
-    pinMode(RAIN_PIN, INPUT);
-    Serial.println("Rain sensor enabled on GPIO34");
+    if (cfg.en_rain) {
+      pinMode(RAIN_PIN, INPUT);
+      Serial.println("Rain sensor enabled on GPIO34");
+    } else {
+      Serial.println("Rain sensor disabled (runtime)");
+    }
   #else
-    Serial.println("Rain sensor disabled");
+    Serial.println("Rain sensor disabled (compile-time)");
   #endif
   
   // Initialize OLED display (if enabled)
@@ -585,48 +619,64 @@ void setup() {
   
   Serial.println("About to connect WiFi...");
   Serial.flush();
-  
+
   #ifdef ESP32
     // Disable brownout detector (overly sensitive on some ESP32 boards)
     WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
     Serial.println("Brownout detector disabled");
   #endif
-  
+
   delay(500);
   connectWiFi();
-  
-  Serial.println("WiFi connected successfully!");
-  Serial.flush();
-  
-  configTime(0, 0, "pool.ntp.org", "time.nist.gov");
-  Serial.print("Time sync");
-  time_t now = time(nullptr);
-  while (now < 1700000000) {
-    delay(500);
-    Serial.print(".");
-    now = time(nullptr);
+
+  if (WiFi.status() == WL_CONNECTED) {
+    configTime(0, 0, "pool.ntp.org", "time.nist.gov");
+    Serial.print("Time sync");
+    time_t now = time(nullptr);
+    unsigned long syncStart = millis();
+    while (now < 1700000000 && millis() - syncStart < 15000) {
+      delay(500);
+      Serial.print(".");
+      now = time(nullptr);
+    }
+    Serial.println(now < 1700000000 ? " timeout" : " OK");
+  } else {
+    Serial.println("STA not connected; skipping NTP / Nostr connect for now.");
   }
-  Serial.println(" OK");
-  
+
   derivePubkey();
-  setupNostrRelay();
-  
-  // Wait a bit for WebSocket to connect, then send metadata
-  delay(2000);
-  sendMetadataEvent();
-  
-  Serial.println("Ready!");
+  if (WiFi.status() == WL_CONNECTED) {
+    setupNostrRelay();
+    delay(2000);
+    sendMetadataEvent();
+  }
+
+  Serial.println("Ready! Connect to AP '" + web_dashboard::apSsid() + "' (open) and visit http://" + web_dashboard::apIp() + "/");
 }
 
 void loop() {
+  // Always service the dashboard + DNS captive portal first so the UI stays
+  // responsive even when STA / WebSocket are flapping.
+  web_dashboard::handle();
   webSocket.loop();
-  
-  static unsigned long lastSensor = 0, lastPost = 0;
+
+  WxConfig& cfg = config_store::current();
+
+  // Best-effort background STA reconnect if user has WiFi creds but we are
+  // currently disconnected (e.g. credentials were just changed).
+  static unsigned long lastStaRetry = 0;
+  if (cfg.wifi_ssid.length() > 0 && WiFi.status() != WL_CONNECTED && millis() - lastStaRetry > 15000) {
+    Serial.println("[wifi] reconnect attempt");
+    WiFi.begin(cfg.wifi_ssid.c_str(), cfg.wifi_pass.c_str());
+    lastStaRetry = millis();
+  }
+
+  static unsigned long lastSensor = 0, lastPost = 0, lastStatus = 0;
   unsigned long now = millis();
-  
+
   if (now - lastSensor > 2000) {
     #if ENABLE_PMS
-      pmReadData();
+      if (cfg.en_pms) pmReadData();
     #endif
     #if ENABLE_SPS30
       sps30ReadData();
@@ -638,13 +688,13 @@ void loop() {
       dhtData();
     #endif
     #if ENABLE_BME280
-      bmeData();
+      if (cfg.en_bme280) bmeData();
     #endif
     #if ENABLE_BH1750
-      lightData();
+      if (cfg.en_bh1750) lightData();
     #endif
     #if ENABLE_RAIN
-      rainData();
+      if (cfg.en_rain) rainData();
     #endif
     #if ENABLE_MQ
       mqReadData();
@@ -654,24 +704,30 @@ void loop() {
     #endif
     lastSensor = now;
   }
-  
-  if (now - lastPost > POST_INTERVAL) {
+
+  if (now - lastStatus > 1000) {
+    publishDashboardStatus();
+    lastStatus = now;
+  }
+
+  uint32_t postIntervalMs = cfg.post_interval_ms > 10000 ? cfg.post_interval_ms : 60000;
+  if (now - lastPost > postIntervalMs) {
     // Check if we have any valid sensor data
     bool hasData = false;
     #if ENABLE_DHT
       hasData = hasData || (t > 0);
     #endif
     #if ENABLE_BME280
-      hasData = hasData || enviroReadingOkForNostr();
+      hasData = hasData || (cfg.en_bme280 && enviroReadingOkForNostr());
     #endif
     #if ENABLE_BH1750
-      hasData = hasData || bh1750Valid();
+      hasData = hasData || (cfg.en_bh1750 && bh1750Valid());
     #endif
     #if ENABLE_RAIN
-      hasData = hasData || (rainValue > 0);
+      hasData = hasData || (cfg.en_rain && rainValue > 0);
     #endif
     #if ENABLE_PMS
-      hasData = hasData || (pm2_5 > 0);
+      hasData = hasData || (cfg.en_pms && pm2_5 > 0);
     #endif
     #if ENABLE_SPS30
       hasData = hasData || sps30DataReceived;
@@ -680,34 +736,77 @@ void loop() {
       hasData = hasData || sds011DataReceived;
     #endif
 
-    if (wsConnected && (hasData || !ENABLE_DHT)) {  // Send if we have data OR if DHT is disabled
-      // Send reading event with all sensor data in tags
+    if (wsConnected && (hasData || !ENABLE_DHT)) {
       String event = createAndSignNostrEvent(t, h, pm1, pm2_5, pm10, airQuality);
       if (event.length() > 0) {
         Serial.println("Sending reading event...");
         String msg = "[\"EVENT\"," + event + "]";
         webSocket.sendTXT(msg);
       }
-      
-      // Send metadata event right after
       sendMetadataEvent();
     }
     lastPost = now;
   }
-  delay(10);
+  delay(2);
 }
 
 void connectWiFi() {
-  WiFi.mode(WIFI_STA);
-  WiFi.begin(ssid, pass);
+  WxConfig& cfg = config_store::current();
+  if (cfg.wifi_ssid.length() == 0) {
+    Serial.println("[wifi] No SSID set; staying in AP-only mode for now");
+    return;
+  }
+  // AP mode is already running (see web_dashboard::begin); WIFI_AP_STA was set
+  // there. Just start the STA connection.
+  WiFi.begin(cfg.wifi_ssid.c_str(), cfg.wifi_pass.c_str());
   Serial.print("WiFi");
-  while (WiFi.status() != WL_CONNECTED) { delay(500); Serial.print("."); }
-  Serial.println(" OK");
-  Serial.println(WiFi.localIP());
+  unsigned long start = millis();
+  while (WiFi.status() != WL_CONNECTED && millis() - start < 15000) {
+    delay(500);
+    Serial.print(".");
+  }
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.print(" OK ");
+    Serial.println(WiFi.localIP());
+  } else {
+    Serial.println(" timeout (continuing; STA will retry in background)");
+  }
+}
+
+static RelayURL parseRelayUrl(const String& url) {
+  RelayURL r{ "", NOSTR_DEFAULT_TLS_PORT, "/", true };
+  if (url.length() == 0) return r;
+  String u = url;
+  if (u.startsWith("wss://"))      { r.ssl = true;  r.port = NOSTR_DEFAULT_TLS_PORT; u = u.substring(6); }
+  else if (u.startsWith("ws://"))  { r.ssl = false; r.port = NOSTR_DEFAULT_WS_PORT;  u = u.substring(5); }
+  // bare "host[:port][/path]" defaults to wss://
+  int slash = u.indexOf('/');
+  String hostport = slash >= 0 ? u.substring(0, slash) : u;
+  r.path = slash >= 0 ? u.substring(slash) : "/";
+  int colon = hostport.indexOf(':');
+  if (colon >= 0) {
+    r.host = hostport.substring(0, colon);
+    r.port = (uint16_t)hostport.substring(colon + 1).toInt();
+  } else {
+    r.host = hostport;
+  }
+  return r;
 }
 
 void setupNostrRelay() {
-  webSocket.beginSSL(nostrRelayHost, nostrRelayPort, nostrRelayPath);
+  WxConfig& cfg = config_store::current();
+  currentRelay = parseRelayUrl(cfg.nostr_relay);
+  if (currentRelay.host.length() == 0) {
+    Serial.println("[nostr] No relay configured; skipping connect");
+    return;
+  }
+  Serial.print("[nostr] Connecting to ");
+  Serial.print(currentRelay.ssl ? "wss://" : "ws://");
+  Serial.print(currentRelay.host);
+  Serial.print(":"); Serial.print(currentRelay.port);
+  Serial.println(currentRelay.path);
+  if (currentRelay.ssl) webSocket.beginSSL(currentRelay.host.c_str(), currentRelay.port, currentRelay.path.c_str());
+  else                  webSocket.begin(currentRelay.host.c_str(), currentRelay.port, currentRelay.path.c_str());
   webSocket.onEvent(webSocketEvent);
   webSocket.setReconnectInterval(5000);
   webSocket.enableHeartbeat(15000, 3000, 2);
@@ -908,12 +1007,12 @@ void taggedHash(const uint8_t* tag, const uint8_t* data, size_t len, uint8_t* ou
 }
 
 void derivePubkey() {
-  hexToBytes(nostrPrivateKeyHex, privKeyBytes, 32);
-  
+  hexToBytes(config_store::current().nostr_privkey.c_str(), privKeyBytes, 32);
+
   uint8_t pubFull[64];
   uECC_Curve curve = uECC_secp256k1();
   uECC_compute_public_key(privKeyBytes, pubFull, curve);
-  
+
   // x-coordinate only (first 32 bytes)
   memcpy(pubKeyBytes, pubFull, 32);
   nostrPubkey = bytesToHex(pubKeyBytes, 32);
@@ -1008,23 +1107,29 @@ String createAndSignNostrEvent(float temp, float humidity, unsigned int pm1_val,
   readingTags += "[\"a\",\"16158:" + nostrPubkey + ":\"]";
   
   // Add sensor readings only when valid (NIP: omit tag for missing/broken sensor)
+  WxConfig& cfg = config_store::current();
   #if ENABLE_DHT
     appendDhtReadingTags(readingTags);
   #endif
   #if ENABLE_BME280
-    if (enviroReadingOkForNostr()) {
+    if (cfg.en_bme280 && enviroReadingOkForNostr()) {
       if (bmeAvailable) appendPressureSensorReadingTags(readingTags, MODEL_BME280, true);
-      else /* bmp */ appendPressureSensorReadingTags(readingTags, MODEL_BMP280, false);
+      else /* bmp */    appendPressureSensorReadingTags(readingTags, MODEL_BMP280, false);
     }
   #endif
   #if ENABLE_BH1750
-    if (bh1750Valid()) appendReadingTag(readingTags, TAG_LIGHT, MODEL_BH1750, lux);
+    if (cfg.en_bh1750 && bh1750Valid()) appendReadingTag(readingTags, TAG_LIGHT, MODEL_BH1750, lux);
   #endif
   #if ENABLE_RAIN
-    appendReadingTag(readingTags, TAG_RAIN, MODEL_MHRD, (unsigned int)rainValue);
+    if (cfg.en_rain) appendReadingTag(readingTags, TAG_RAIN, MODEL_MHRD, (unsigned int)rainValue);
   #endif
   #if ENABLE_PMS
-    appendPmReadingTags(readingTags);
+    if (cfg.en_pms && pmsValid()) {
+      const char* pmsModel = cfg.pms_model.c_str();
+      appendReadingTag(readingTags, TAG_PM1,  pmsModel, pm1);
+      appendReadingTag(readingTags, TAG_PM25, pmsModel, pm2_5);
+      appendReadingTag(readingTags, TAG_PM10, pmsModel, pm10);
+    }
   #endif
   #if ENABLE_SPS30
     appendSps30ReadingTags(readingTags);
@@ -1064,50 +1169,55 @@ String createAndSignNostrEvent(float temp, float humidity, unsigned int pm1_val,
 
 String createMetadataEvent() {
   unsigned long createdAt = (unsigned long)time(nullptr);
-  
+  WxConfig& cfg = config_store::current();
+
   // Build tags array for metadata
   String metadataTags = "[";
-  metadataTags += "[\"name\",\"" + String(stationName) + "\"]";
-  
-  // Add description if provided
-  if (strlen(stationDescription) > 0) {
-    metadataTags += ",[\"description\",\"" + String(stationDescription) + "\"]";
+  metadataTags += "[\"name\",\"" + cfg.station_name + "\"]";
+
+  if (cfg.station_description.length() > 0) {
+    metadataTags += ",[\"description\",\"" + cfg.station_description + "\"]";
   }
-  
-  // Add geohash location (NIP-52)
-  if (strlen(stationGeohash) > 0) {
-    metadataTags += ",[\"g\",\"" + String(stationGeohash) + "\"]";
+  if (cfg.station_geohash.length() > 0) {
+    metadataTags += ",[\"g\",\"" + cfg.station_geohash + "\"]";
   }
-  
-  // Add elevation if provided
-  if (strlen(stationElevation) > 0) {
-    metadataTags += ",[\"elevation\",\"" + String(stationElevation) + "\"]";
+  if (cfg.station_elevation.length() > 0) {
+    metadataTags += ",[\"elevation\",\"" + cfg.station_elevation + "\"]";
   }
-  
-  // Add power and connectivity info
-  metadataTags += ",[\"power\",\"" + String(stationPower) + "\"]";
-  metadataTags += ",[\"connectivity\",\"" + String(stationConnectivity) + "\"]";
-  
-  // Sensor capability + status (NIP: sensor tag + sensor_status ok/418)
+  metadataTags += ",[\"power\",\"" + cfg.station_power + "\"]";
+  metadataTags += ",[\"connectivity\",\"" + cfg.station_connectivity + "\"]";
+  // Stable hardware identity. Same value across firmware upgrades, factory
+  // resets, and Nostr key rotations -- useful for matching prior events from
+  // the same physical board.
+  metadataTags += ",[\"device_id\",\"" + getDeviceId() + "\"]";
+
+  // Sensor capability + status (NIP: sensor tag + sensor_status ok/418).
+  // Only declared sensors that are runtime-enabled are advertised; toggling a
+  // sensor off in the dashboard makes it disappear from the metadata.
   #if ENABLE_DHT
     appendSensorAndStatus(metadataTags, TAG_TEMP, MODEL_DHT11, dhtValid());
     appendSensorAndStatus(metadataTags, TAG_HUMIDITY, MODEL_DHT11, dhtValid());
   #endif
   #if ENABLE_BME280
-    if (bmeAvailable) appendPressureSensorMetadataTags(metadataTags, MODEL_BME280, true, bmeHasReading);
-    else if (bmpAvailable) appendPressureSensorMetadataTags(metadataTags, MODEL_BMP280, false, bmpHasReading);
-    else appendPressureSensorMetadataTags(metadataTags, MODEL_BME280, true, false);  // chip absent → 418
+    if (cfg.en_bme280) {
+      if (bmeAvailable) appendPressureSensorMetadataTags(metadataTags, MODEL_BME280, true, bmeHasReading);
+      else if (bmpAvailable) appendPressureSensorMetadataTags(metadataTags, MODEL_BMP280, false, bmpHasReading);
+      else appendPressureSensorMetadataTags(metadataTags, MODEL_BME280, true, false);
+    }
   #endif
   #if ENABLE_BH1750
-    appendSensorAndStatus(metadataTags, TAG_LIGHT, MODEL_BH1750, bh1750Valid());
+    if (cfg.en_bh1750) appendSensorAndStatus(metadataTags, TAG_LIGHT, MODEL_BH1750, bh1750Valid());
   #endif
   #if ENABLE_RAIN
-    appendSensorAndStatus(metadataTags, TAG_RAIN, MODEL_MHRD, true);
+    if (cfg.en_rain) appendSensorAndStatus(metadataTags, TAG_RAIN, MODEL_MHRD, true);
   #endif
   #if ENABLE_PMS
-    appendSensorAndStatus(metadataTags, TAG_PM1, PMS_MODEL, pmsValid());
-    appendSensorAndStatus(metadataTags, TAG_PM25, PMS_MODEL, pmsValid());
-    appendSensorAndStatus(metadataTags, TAG_PM10, PMS_MODEL, pmsValid());
+    if (cfg.en_pms) {
+      const char* pmsModel = cfg.pms_model.c_str();
+      appendSensorAndStatus(metadataTags, TAG_PM1,  pmsModel, pmsValid());
+      appendSensorAndStatus(metadataTags, TAG_PM25, pmsModel, pmsValid());
+      appendSensorAndStatus(metadataTags, TAG_PM10, pmsModel, pmsValid());
+    }
   #endif
   #if ENABLE_SPS30
     appendSensorAndStatus(metadataTags, TAG_PM1, MODEL_SPS30, sps30Valid());
@@ -1150,11 +1260,195 @@ String createMetadataEvent() {
 
 void sendMetadataEvent() {
   if (!wsConnected) return;
-  
+
   String metadataEvent = createMetadataEvent();
   if (metadataEvent.length() > 0) {
     Serial.println("Sending metadata event...");
     String msg = "[\"EVENT\"," + metadataEvent + "]";
     webSocket.sendTXT(msg);
   }
+}
+
+// ---------------------------------------------------------------------------
+// Dashboard glue: factory defaults, hot-apply on config change, status push.
+// ---------------------------------------------------------------------------
+
+static WxConfig buildFactoryDefaults() {
+  WxConfig d;
+  #ifdef WIFI_SSID
+    d.wifi_ssid = WIFI_SSID;
+  #endif
+  #ifdef WIFI_PASS
+    d.wifi_pass = WIFI_PASS;
+  #endif
+  #ifdef NOSTR_RELAY_HOST
+    {
+      String r = NOSTR_RELAY_HOST;
+      // Compile-time default was a bare host; assume wss:// for new-style URL.
+      if (r.length() > 0 && !r.startsWith("ws://") && !r.startsWith("wss://")) r = "wss://" + r;
+      d.nostr_relay = r;
+    }
+  #endif
+  #ifdef NOSTR_PRIVKEY
+    d.nostr_privkey = NOSTR_PRIVKEY;
+  #endif
+  #ifdef STATION_NAME
+    d.station_name = STATION_NAME;
+  #endif
+  #ifdef STATION_DESCRIPTION
+    d.station_description = STATION_DESCRIPTION;
+  #endif
+  #ifdef STATION_GEOHASH
+    d.station_geohash = STATION_GEOHASH;
+  #endif
+  #ifdef STATION_ELEVATION
+    d.station_elevation = STATION_ELEVATION;
+  #endif
+  #ifdef STATION_POWER
+    d.station_power = STATION_POWER;
+  #else
+    d.station_power = "mains";
+  #endif
+  #ifdef STATION_CONNECTIVITY
+    d.station_connectivity = STATION_CONNECTIVITY;
+  #else
+    d.station_connectivity = "wifi";
+  #endif
+  d.post_interval_ms = 60000;
+  #if ENABLE_BME280
+    d.en_bme280 = (bool)(ENABLE_BME280);
+  #endif
+  #if ENABLE_BH1750
+    d.en_bh1750 = (bool)(ENABLE_BH1750);
+  #endif
+  #if ENABLE_RAIN
+    d.en_rain = (bool)(ENABLE_RAIN);
+  #endif
+  #if ENABLE_PMS
+    d.en_pms = (bool)(ENABLE_PMS);
+  #endif
+  #ifdef PMS_MODEL
+    d.pms_model = PMS_MODEL;
+  #endif
+  return d;
+}
+
+static void initRuntimeSensors() {
+  WxConfig& cfg = config_store::current();
+  #if ENABLE_PMS
+    static bool pmsStarted = false;
+    if (cfg.en_pms && !pmsStarted) {
+      #ifdef ESP32
+        PMS_SERIAL.begin(9600, SERIAL_8N1, 16, 17);
+      #else
+        PMS_SERIAL.begin(9600);
+      #endif
+      pmsStarted = true;
+      Serial.println("[sensors] PMS started");
+    }
+  #endif
+  #if ENABLE_BME280
+    if (cfg.en_bme280 && !bmeAvailable && !bmpAvailable) {
+      if (bme.begin(0x76) || bme.begin(0x77)) {
+        bmeAvailable = true;
+        Serial.println("[sensors] BME280 init OK");
+      } else if (bmp.begin(0x76) || bmp.begin(0x77)) {
+        bmpAvailable = true;
+        Serial.println("[sensors] BMP280 init OK");
+      } else {
+        Serial.println("[sensors] BME280/BMP280 still not found");
+      }
+    }
+  #endif
+  #if ENABLE_BH1750
+    if (cfg.en_bh1750 && !bh1750Available) {
+      if (lightMeter.begin(BH1750::CONTINUOUS_HIGH_RES_MODE)) {
+        bh1750Available = true;
+        Serial.println("[sensors] BH1750 init OK");
+      }
+    }
+  #endif
+  #if ENABLE_RAIN
+    if (cfg.en_rain) pinMode(RAIN_PIN, INPUT);
+  #endif
+}
+
+static void applyConfigChanges(bool wifiChanged, bool relayChanged, bool keyChanged, bool sensorsChanged, bool intervalChanged) {
+  WxConfig& cfg = config_store::current();
+  if (wifiChanged) {
+    Serial.println("[apply] WiFi creds changed; reconnecting STA");
+    WiFi.disconnect(false, true);
+    if (cfg.wifi_ssid.length() > 0) {
+      WiFi.begin(cfg.wifi_ssid.c_str(), cfg.wifi_pass.c_str());
+    }
+  }
+  if (keyChanged) {
+    Serial.println("[apply] Nostr key changed; recomputing pubkey");
+    derivePubkey();
+    // Drop the relay so next post re-publishes metadata with the new pubkey.
+    webSocket.disconnect();
+    wsConnected = false;
+  }
+  if (relayChanged) {
+    Serial.println("[apply] Nostr relay changed; reconnecting");
+    webSocket.disconnect();
+    wsConnected = false;
+    setupNostrRelay();
+  }
+  if (sensorsChanged) {
+    Serial.println("[apply] Sensor toggles changed; (re)initialising drivers");
+    initRuntimeSensors();
+  }
+  if (intervalChanged) {
+    Serial.print("[apply] Post interval is now ");
+    Serial.print(cfg.post_interval_ms / 1000);
+    Serial.println("s");
+  }
+}
+
+static String getDeviceId() {
+  // Mirror the AP SSID suffix exactly: last 3 bytes of the eFuse MAC, hex.
+  uint64_t chipId = ESP.getEfuseMac();
+  char buf[7];
+  snprintf(buf, sizeof(buf), "%02X%02X%02X",
+           (unsigned)((chipId >> 16) & 0xFF),
+           (unsigned)((chipId >>  8) & 0xFF),
+           (unsigned)((chipId >>  0) & 0xFF));
+  return String(buf);
+}
+
+static void publishDashboardStatus() {
+  WxConfig& cfg = config_store::current();
+  DashboardStatus s;
+  s.sta_connected = (WiFi.status() == WL_CONNECTED);
+  if (s.sta_connected) {
+    s.sta_ssid = WiFi.SSID();
+    s.sta_ip   = WiFi.localIP().toString();
+    s.sta_rssi = WiFi.RSSI();
+  }
+  s.ws_connected = wsConnected;
+  s.pubkey_hex = nostrPubkey;
+  s.device_id  = getDeviceId();
+
+  #if ENABLE_BME280
+    if (cfg.en_bme280 && (bmeHasReading || bmpHasReading)) {
+      s.has_temp = true; s.temp_c = t;
+      s.has_pressure = true; s.pressure_hpa = p;
+      if (bmeHasReading) { s.has_humidity = true; s.humidity = h; }
+    }
+  #endif
+  #if ENABLE_BH1750
+    if (cfg.en_bh1750 && bh1750Valid()) { s.has_lux = true; s.lux = lux; }
+  #endif
+  #if ENABLE_RAIN
+    if (cfg.en_rain) s.rain_raw = rainValue;
+  #endif
+  #if ENABLE_PMS
+    if (cfg.en_pms && pmDataReceived) {
+      s.has_pm = true;
+      s.pm1 = pm1; s.pm25 = pm2_5; s.pm10 = pm10;
+    }
+  #endif
+
+  web_dashboard::updateStatus(s);
 }

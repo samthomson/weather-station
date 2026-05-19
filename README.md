@@ -54,43 +54,36 @@ Hookup wire or Dupont jumpers between the dev board and breakouts are assumed by
 
 ## Setup
 
-1. Install [PlatformIO](https://platformio.org/)
-2. Create station-specific secrets files:
-   - Copy `include/secrets.h.example` to `include/secrets_station1.h`
-   - Copy `include/secrets.h.example` to `include/secrets_station2.h` (if you have multiple stations)
-3. Edit each secrets file with:
-   - WiFi credentials
-   - Nostr private key (create a **unique key for each station**)
-   - Station name (unique per station)
-   - Geohash location (use [geohash.jorren.nl](https://geohash.jorren.nl/) to find yours) (optional)
-   - Elevation in meters (optional)
-   - Power source (mains, solar, battery, etc.)
-   - Connectivity type (wifi, cellular, etc.)
-
-**Note:** Each station should have its own Nostr keypair so they have separate identities on the network.
-4. Build and upload (connect board via USB first):
-   
-   **Station 1 - ESP8266 (NodeMCU v2):**
+1. Install [PlatformIO](https://platformio.org/).
+2. *(Optional)* For brand-new boards you do not need to edit any secrets file — the firmware ships with sensible blank defaults and a per-device captive-portal dashboard handles everything. If you want pre-baked factory defaults (handy if you flash a lot of boards), copy `include/secrets.h.example` to e.g. `include/secrets_station_mvp1.h` and fill it in.
+3. Connect the board via USB and flash any MVP env:
    ```bash
-   pio run -e nodemcuv2_station1 --target upload
-   pio device monitor -e nodemcuv2_station1
+   pio run -e esp32dev_mvp1 --target upload
+   pio device monitor -e esp32dev_mvp1
    ```
-   
-   **Station 2 - ESP32:**
-   ```bash
-   pio run -e esp32dev_station2 --target upload
-   pio device monitor -e esp32dev_station2
-   ```
-   
-   If multiple devices are connected, specify the port with `--upload-port /dev/ttyUSB0` (adjust as needed).
-   
-   To add more stations, create new environments in `platformio.ini` with unique secrets files.
+   All MVP envs (`esp32dev_mvp1` … `esp32dev_mvp5`) build the **same firmware**; only the first-boot defaults differ.
 
-## Configuration
+## Configure from your phone (the dashboard)
 
-Edit `src/main.cpp` to change:
-- `POST_INTERVAL` — posting frequency (default 30s)
-- `sensors[]` array — add/remove sensor types
+The station permanently broadcasts its own open WiFi network for configuration. You don't need a router, an app, or an IP address.
+
+1. Plug the station in.
+2. On your phone, join the WiFi named **`WeatherStation-XXXXXX`** (`XXXXXX` is the last 6 hex of the board's MAC). It has no password.
+3. The "Sign in to network" sheet pops up automatically with the dashboard. (If not, open a browser to `http://192.168.4.1`.)
+4. Set your home WiFi, station name, geohash, etc. Toggle the sensors you actually have wired. Hit Save.
+5. The station joins your home WiFi and starts publishing to Nostr.
+
+You can rejoin `WeatherStation-XXXXXX` at any time to change anything — including the home WiFi password if it ever changes. Everything you change persists across power loss (stored in flash / NVS).
+
+Once on the home network you can also reach the dashboard at `http://weather.local` (mDNS).
+
+### What's configurable from the dashboard
+
+- **WiFi (home)** — SSID and password, with a built-in network scan.
+- **Station identity** — name, description, geohash (with a "use my GPS" button that pulls from the phone), elevation, power source, connectivity type.
+- **Nostr** — relay URL (preset dropdown + custom), private key (auto-generated on first boot; reveal / copy / regenerate / paste-an-existing-one).
+- **Sensors** — per-sensor on/off toggles for BME280, BH1750, MH-RD rain, PMS5003/PMS7003. Only sensors you actually have wired need to be on.
+- **Advanced** — post interval, restart, factory reset.
 
 ## Events Published
 
@@ -138,9 +131,13 @@ Each tag: `[sensor_type, value, model]`
 ## Project Structure
 
 ```
-├── src/main.cpp           # Main code
-├── include/secrets.h      # Your credentials (gitignored)
-├── include/secrets.h.example
+├── src/main.cpp                   # Sensor reads + Nostr publish
+├── src/config_store.cpp           # NVS-backed user config
+├── src/web_dashboard.cpp          # Captive-portal dashboard
+├── include/config_store.h
+├── include/web_dashboard.h
+├── include/secrets.h.example      # First-boot factory defaults template
+├── include/secrets_station_mvpN.h # Per-board factory defaults
 ├── platformio.ini
 └── README.md
 ```
@@ -148,7 +145,7 @@ Each tag: `[sensor_type, value, model]`
 ## todo
 
 - [ ] automated tests
-- [ ] web dashboard
+- [x] web dashboard
 - [ ] more modular readings
 - [ ] MVP
   - [x] hardware shopping list (see **MVP shopping list** under Hardware)
