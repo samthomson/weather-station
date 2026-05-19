@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <math.h>
 
 // Include station-specific secrets FIRST (defines sensor flags)
 #ifndef SECRETS_FILE
@@ -203,6 +204,8 @@ bool pmDataReceived = false;  // set on first valid PM frame; omit PM reading ta
   Adafruit_BMP280 bmp;
   bool bmeAvailable = false;
   bool bmpAvailable = false;  // BMP280 = no humidity, just temp+pressure
+  bool bmeHasReading = false;
+  bool bmpHasReading = false;
 #endif
 
 // BH1750 light sensor (I2C)
@@ -219,7 +222,7 @@ bool pmDataReceived = false;  // set on first valid PM frame; omit PM reading ta
 #endif
 
 float t = 0, h = 0, p = 0;  // temperature, humidity, pressure
-float lux = 0;              // light level
+float lux = NAN;            // BH1750 lux; NAN until first valid read
 unsigned int rainValue = 0; // rain sensor (0-4095 on ESP32, 0-1023 on ESP8266)
 
 // MQ sensor analog pin - board-specific
@@ -297,7 +300,16 @@ static void appendSensorAndStatus(String& dest, const char* type, const char* mo
 static bool dhtValid() { return !isnan(t) && !isnan(h); }
 #endif
 #if ENABLE_BME280
-static bool bme280Valid() { return bmeAvailable || bmpAvailable; }
+static bool enviroReadingOkForNostr() { return (bmeAvailable && bmeHasReading) || (bmpAvailable && bmpHasReading); }
+
+// BME280 sensor range (datasheet); values outside are almost always corrupt I2C frames.
+static bool bmeEnviroPlausible(float tempC, float humPct, float pressHpa) {
+  if (isnan((double)tempC) || isnan((double)humPct) || isnan((double)pressHpa)) return false;
+  if (tempC < -40.0f || tempC > 85.0f) return false;
+  if (humPct < 0.0f || humPct > 100.0f) return false;
+  if (pressHpa < 260.0f || pressHpa > 1100.0f) return false;
+  return true;
+}
 #endif
 #if ENABLE_PMS
 static bool pmsValid() { return pmDataReceived; }  // set on first valid frame; omit PM tags until then (NIP)
@@ -309,7 +321,10 @@ static bool sps30Valid() { return sps30DataReceived; }
 static bool sds011Valid() { return sds011DataReceived; }
 #endif
 #if ENABLE_BH1750
-static bool bh1750Valid() { return bh1750Available; }
+// claws/BH1750 returns negative values on I2C read failure — do not relay as lux.
+static bool bh1750Valid() {
+  return bh1750Available && !isnan((double)lux) && lux >= 0.0f;
+}
 #endif
 
 // BME280 (temp+humidity+pressure) vs BMP280 (temp+pressure only) — one helper, two model names
@@ -478,7 +493,11 @@ void setup() {
   
   // Initialize I2C bus for any I2C sensors or OLED
   #if ENABLE_BME280 || ENABLE_BH1750 || ENABLE_SPS30 || ENABLE_OLED
-    Wire.begin();
+    #ifdef ESP32
+      Wire.begin(21, 22);  // Explicit SDA/SCL pins on ESP32
+    #else
+      Wire.begin();
+    #endif
     delay(100);  // Give I2C bus time to stabilize
   #endif
 
@@ -513,7 +532,7 @@ void setup() {
     } else if (bme.begin(0x77)) {
       bmeAvailable = true;
       Serial.println("BME280 enabled (addr 0x77)");
-    } 
+    }
     // If BME280 not found, try BMP280 (no humidity)
     else if (bmp.begin(0x76)) {
       bmpAvailable = true;
@@ -527,7 +546,7 @@ void setup() {
   #else
     Serial.println("BME280 sensor disabled");
   #endif
-  
+
   // Initialize BH1750 light sensor (if enabled)
   #if ENABLE_BH1750
     if (lightMeter.begin(BH1750::CONTINUOUS_HIGH_RES_MODE)) {
@@ -643,10 +662,10 @@ void loop() {
       hasData = hasData || (t > 0);
     #endif
     #if ENABLE_BME280
-      hasData = hasData || ((bmeAvailable || bmpAvailable) && t > 0);
+      hasData = hasData || enviroReadingOkForNostr();
     #endif
     #if ENABLE_BH1750
-      hasData = hasData || (bh1750Available && lux >= 0);
+      hasData = hasData || bh1750Valid();
     #endif
     #if ENABLE_RAIN
       hasData = hasData || (rainValue > 0);
@@ -764,20 +783,36 @@ void dhtData() {
 #if ENABLE_BME280
 void bmeData() {
   if (bmeAvailable) {
-    t = bme.readTemperature();
-    h = bme.readHumidity();
-    p = bme.readPressure() / 100.0F;  // Convert Pa to hPa
-    
-    Serial.print("BME280 - T:"); Serial.print(t,1); 
-    Serial.print(" H:"); Serial.print(h,1);
-    Serial.print(" P:"); Serial.print(p,1); Serial.println("hPa");
+    float nt = bme.readTemperature();
+    float nh = bme.readHumidity();
+    float np = bme.readPressure() / 100.0F;
+    if (bmeEnviroPlausible(nt, nh, np)) {
+      t = nt;
+      h = nh;
+      p = np;
+      bmeHasReading = true;
+      Serial.print("BME280 - T:");
+      Serial.print(t, 1);
+      Serial.print(" H:");
+      Serial.print(h, 1);
+      Serial.print(" P:");
+      Serial.print(p, 1);
+      Serial.println("hPa");
+    }
   } else if (bmpAvailable) {
-    t = bmp.readTemperature();
-    h = 0;  // BMP280 has no humidity sensor
-    p = bmp.readPressure() / 100.0F;  // Convert Pa to hPa
-    
-    Serial.print("BMP280 - T:"); Serial.print(t,1); 
-    Serial.print(" P:"); Serial.print(p,1); Serial.println("hPa");
+    float nt = bmp.readTemperature();
+    float np = bmp.readPressure() / 100.0F;
+    if (!isnan((double)nt) && !isnan((double)np) && nt >= -40.0f && nt <= 85.0f && np > 260.0f && np < 1100.0f) {
+      t = nt;
+      h = 0;
+      p = np;
+      bmpHasReading = true;
+      Serial.print("BMP280 - T:");
+      Serial.print(t, 1);
+      Serial.print(" P:");
+      Serial.print(p, 1);
+      Serial.println("hPa");
+    }
   }
 }
 #endif
@@ -785,9 +820,15 @@ void bmeData() {
 #if ENABLE_BH1750
 void lightData() {
   if (!bh1750Available) return;
-  
-  lux = lightMeter.readLightLevel();
-  Serial.print("Light: "); Serial.print(lux); Serial.println(" lux");
+
+  float v = lightMeter.readLightLevel();
+  // Negative = driver I2C error; do not update lux with invalid reads.
+  if (bh1750Available && !isnan((double)v) && v >= 0.0f) {
+    lux = v;
+    Serial.print("Light: ");
+    Serial.print(lux);
+    Serial.println(" lux");
+  }
 }
 #endif
 
@@ -971,8 +1012,10 @@ String createAndSignNostrEvent(float temp, float humidity, unsigned int pm1_val,
     appendDhtReadingTags(readingTags);
   #endif
   #if ENABLE_BME280
-    if (bmeAvailable) appendPressureSensorReadingTags(readingTags, MODEL_BME280, true);
-    else if (bmpAvailable) appendPressureSensorReadingTags(readingTags, MODEL_BMP280, false);
+    if (enviroReadingOkForNostr()) {
+      if (bmeAvailable) appendPressureSensorReadingTags(readingTags, MODEL_BME280, true);
+      else /* bmp */ appendPressureSensorReadingTags(readingTags, MODEL_BMP280, false);
+    }
   #endif
   #if ENABLE_BH1750
     if (bh1750Valid()) appendReadingTag(readingTags, TAG_LIGHT, MODEL_BH1750, lux);
@@ -1051,9 +1094,9 @@ String createMetadataEvent() {
     appendSensorAndStatus(metadataTags, TAG_HUMIDITY, MODEL_DHT11, dhtValid());
   #endif
   #if ENABLE_BME280
-    if (bmeAvailable) appendPressureSensorMetadataTags(metadataTags, MODEL_BME280, true, true);
-    else if (bmpAvailable) appendPressureSensorMetadataTags(metadataTags, MODEL_BMP280, false, true);
-    else appendPressureSensorMetadataTags(metadataTags, MODEL_BME280, true, false);  // 418
+    if (bmeAvailable) appendPressureSensorMetadataTags(metadataTags, MODEL_BME280, true, bmeHasReading);
+    else if (bmpAvailable) appendPressureSensorMetadataTags(metadataTags, MODEL_BMP280, false, bmpHasReading);
+    else appendPressureSensorMetadataTags(metadataTags, MODEL_BME280, true, false);  // chip absent → 418
   #endif
   #if ENABLE_BH1750
     appendSensorAndStatus(metadataTags, TAG_LIGHT, MODEL_BH1750, bh1750Valid());
