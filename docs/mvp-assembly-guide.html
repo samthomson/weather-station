@@ -249,7 +249,75 @@ Hold the board with holes up, copper strips on the bottom (you solder on the cop
 </tbody>
 </table>
 </div>
-<p class="note"><strong>Power (industry standard):</strong> <span class="wire-chip black wire-inline">Black</span> GND · <span class="wire-chip red wire-inline">Red</span> 5V — label on the stripboard edge.<br><strong>Project theme</strong> (orange · purple · white · grey — see README): <span class="wire-chip orange wire-inline">Orange</span> 3V3 (×4) · <span class="wire-chip purple wire-inline">Purple</span> SDA (×3) · <span class="wire-chip white wire-inline">White</span> SCL (×3) · <span class="wire-chip grey wire-inline">Grey</span> ESP TX→PMS RX (×2).<br><strong>Other signals:</strong> <span class="wire-chip green wire-inline">Green</span> PMS TX→ESP RX (×2) · <span class="wire-chip blue wire-inline">Blue</span> rain AO (×2). UART = two rows, two colours.<br><br><strong>23 connections</strong> to the stripboard. MH-RD pad cable polarity does not matter; dry reads ~4095 on D34.</p>
+<p class="note"><strong>Power (industry standard):</strong> <span class="wire-chip black wire-inline">Black</span> GND · <span class="wire-chip red wire-inline">Red</span> 5V — label on the stripboard edge.<br><strong>Project theme</strong> (orange · purple · white · grey — see README): <span class="wire-chip orange wire-inline">Orange</span> 3V3 (×4) · <span class="wire-chip purple wire-inline">Purple</span> SDA (×3) · <span class="wire-chip white wire-inline">White</span> SCL (×3) · <span class="wire-chip grey wire-inline">Grey</span> ESP TX→PMS RX (×2).<br><strong>Other signals:</strong> <span class="wire-chip green wire-inline">Green</span> PMS TX→ESP RX (×2) · <span class="wire-chip blue wire-inline">Blue</span> rain AO (×2). UART = two rows, two colours.<br><br><strong>23 soldered connections</strong> on the stripboard. MH-RD pad cable polarity does not matter; dry reads ~4095 on D34.</p>
+</div>
+
+<!-- ==================== CABLE PLAN ==================== -->
+<div class="card">
+<h2>Cable plan</h2>
+<p class="note" style="margin-top:0;">The matrix above is the electrical plan. This section is the <b>physical harness</b> plan — what to cut or buy, and how long.</p>
+
+<h3 style="font-size:0.8rem;text-transform:uppercase;letter-spacing:.06em;color:var(--purple);margin:16px 0 8px;">Recommended: stubs on the base + column jumpers</h3>
+<p class="note" style="margin-top:0;">
+<b>Do not</b> run one 40&nbsp;cm dupont all the way from a stripboard solder joint up to a remote module. Tugs in the column would stress the solder.<br><br>
+<b>Instead:</b><br>
+1. <b>Base stubs</b> (~15&nbsp;cm, female–male): <b>male</b> end soldered into the stripboard; <b>female</b> end sits at the base module bulkhead (zip-tied / glued so nothing pulls on the joint).<br>
+2. <b>Column harness</b> (~35–40&nbsp;cm, male–female): <b>male</b> into the stub at the base; <b>female</b> onto the breakout pins in the upper module. Unplug here when servicing a tier.<br>
+3. <b>ESP32 harness</b> (~15&nbsp;cm, all eight colours): same stub idea — fixed inside the base, ESP stays socketed on female ends only.<br><br>
+USB power is separate: one USB cable exits the base (not counted below).
+</p>
+
+<p class="note"><b>Dupont gender cheat sheet:</b> breakouts and ESP32 pins are <b>male</b> headers → cable needs a <b>female</b> dupont on that end. Stripboard wants a <b>male</b> pin through the hole to solder.</p>
+
+<h3 style="font-size:0.8rem;text-transform:uppercase;letter-spacing:.06em;color:var(--purple);margin:16px 0 8px;">ESP32 → stripboard (stays in base module)</h3>
+<table>
+<tr><th>Qty</th><th>Length</th><th>Type</th><th>Colours (one each)</th></tr>
+<tr><td>8</td><td>15&nbsp;cm</td><td>F–M dupont</td><td><span class="wire-chip black wire-inline">Black</span> <span class="wire-chip orange wire-inline">Orange</span> <span class="wire-chip purple wire-inline">Purple</span> <span class="wire-chip white wire-inline">White</span> <span class="wire-chip green wire-inline">Green</span> <span class="wire-chip grey wire-inline">Grey</span> <span class="wire-chip red wire-inline">Red</span> <span class="wire-chip blue wire-inline">Blue</span></td></tr>
+</table>
+<p class="note">Female on ESP32; male soldered to rows 1–8 per matrix. Keep this harness short and fixed — do not unplug during normal use.</p>
+
+<h3 style="font-size:0.8rem;text-transform:uppercase;letter-spacing:.06em;color:var(--purple);margin:16px 0 8px;">Per sensor — base stub (soldered) + column (pluggable)</h3>
+<table>
+<tr><th>Module</th><th>Stub on stripboard</th><th>Column to upper module</th><th>Notes</th></tr>
+<tr>
+  <td><b>BME280</b></td>
+  <td>4× F–M 15&nbsp;cm<br><span class="wire-chip black wire-inline">Black</span> <span class="wire-chip orange wire-inline">Orange</span> <span class="wire-chip purple wire-inline">Purple</span> <span class="wire-chip white wire-inline">White</span></td>
+  <td>4× M–F 35&nbsp;cm, same colours</td>
+  <td>Rows 1–4</td>
+</tr>
+<tr>
+  <td><b>BH1750</b></td>
+  <td>4× F–M 15&nbsp;cm<br><span class="wire-chip black wire-inline">Black</span> <span class="wire-chip orange wire-inline">Orange</span> <span class="wire-chip purple wire-inline">Purple</span> <span class="wire-chip white wire-inline">White</span></td>
+  <td>4× M–F 35&nbsp;cm, same colours</td>
+  <td>Rows 1–4 (shares I²C rails with BME)</td>
+</tr>
+<tr>
+  <td><b>PMS5003</b></td>
+  <td>4× F–M 15&nbsp;cm<br><span class="wire-chip black wire-inline">Black</span> <span class="wire-chip green wire-inline">Green</span> <span class="wire-chip grey wire-inline">Grey</span> <span class="wire-chip red wire-inline">Red</span></td>
+  <td>4× M–F 35&nbsp;cm, same colours</td>
+  <td>Rows 1, 5–7 (5&nbsp;V on row 7, not 3V3)</td>
+</tr>
+<tr>
+  <td><b>MH-RD rain</b></td>
+  <td>3× F–M 15&nbsp;cm<br><span class="wire-chip black wire-inline">Black</span> <span class="wire-chip orange wire-inline">Orange</span> <span class="wire-chip blue wire-inline">Blue</span></td>
+  <td>3× M–F 35&nbsp;cm, same colours</td>
+  <td>Rows 1, 2, 8</td>
+</tr>
+</table>
+
+<h3 style="font-size:0.8rem;text-transform:uppercase;letter-spacing:.06em;color:var(--purple);margin:16px 0 8px;">Rain pad only (not on stripboard)</h3>
+<p class="note" style="margin-top:0;">The resistive pad uses a separate <b>2-wire</b> cable (often screw terminals on the MH-RD board). Length depends on pad placement — typically 20–40&nbsp;cm. Colour does not matter; polarity does not matter. Usually ships with the module; if not, any 2-core wire is fine.</p>
+
+<h3 style="font-size:0.8rem;text-transform:uppercase;letter-spacing:.06em;color:var(--purple);margin:16px 0 8px;">Shopping checklist (dupont)</h3>
+<table>
+<tr><th>Harness</th><th>Count</th><th>Length</th><th>Dupont</th></tr>
+<tr><td>ESP32 → stripboard</td><td>8</td><td>15&nbsp;cm</td><td>F–M</td></tr>
+<tr><td>Sensor base stubs (soldered)</td><td>15</td><td>15&nbsp;cm</td><td>F–M</td></tr>
+<tr><td>Sensor column links (pluggable)</td><td>15</td><td>35&nbsp;cm</td><td>M–F</td></tr>
+<tr><td colspan="4" style="font-size:0.85rem;color:var(--text-muted)"><b>Colour totals for stubs + columns combined:</b> black ×5 · orange ×4 · purple ×3 · white ×3 · green ×2 · grey ×2 · red ×2 · blue ×2 (38 wires if every run is a separate cable; buy a few spares per colour).</td></tr>
+</table>
+
+<p class="note"><b>One long cable per sensor?</b> Possible for a bench test, but not recommended for the station: a single 40&nbsp;cm F–M from stripboard to breakout means every snag pulls on solder. Stubs + column adds one extra plug per wire and costs more dupont, but matches how you route through the central column and makes upper modules removable without desoldering.</p>
 </div>
 
 <!-- ==================== BUILD ORDER ==================== -->
@@ -267,7 +335,8 @@ Hold the board with holes up, copper strips on the bottom (you solder on the cop
 <li><b>Row 8 (rain analog, blue):</b> ESP32 <span class="pin">D34</span> + MH-RD <b>AO</b> → row 8.</li>
 <li>Check: no solder bridges between <b>adjacent rows</b> (use a phone torch on the copper side).</li>
 <li>Plug USB, confirm BME/BH/rain/PM on serial or relay.</li>
-<li>Mount board in enclosure; zip-tie or hot-glue wire exits so nothing pulls out.</li>
+<li>Solder <b>base stubs</b> (15&nbsp;cm F–M) per the cable plan; strain-relief stub females at the base bulkhead.</li>
+<li>Mount board in enclosure; plug <b>column harnesses</b> (35&nbsp;cm M–F) at the bulkhead when fitting upper modules.</li>
 </ol>
 </div>
 

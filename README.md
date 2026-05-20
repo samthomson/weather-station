@@ -36,7 +36,7 @@ Hookup wire or Dupont jumpers between the dev board and breakouts are assumed by
 
 **MVP ESP32 wiring:** PMS5003 serial RX→**GPIO16**, TX→**GPIO17**. BME280 and BH1750 share **I2C** (**GPIO21**=SDA, **GPIO22**=SCL). Rain sensor analog→**GPIO34**.
 
-Full stripboard build (rows, pins, photos): **[docs/mvp-assembly-guide.html](docs/mvp-assembly-guide.html)**.
+Full stripboard build (matrix, **cable plan**, build order): **[docs/mvp-assembly-guide.html](docs/mvp-assembly-guide.html)**.
 
 ### MVP wire colours
 
