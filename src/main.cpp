@@ -271,6 +271,12 @@ void lightData();
 #endif
 #if ENABLE_RAIN
 void rainData();
+// GPIO34 has no internal pull; floating reads ~0. MH-RD drives AO when wired.
+static const unsigned RAIN_ADC_MIN = 32;
+
+static bool rainValid() {
+  return rainValue >= RAIN_ADC_MIN;
+}
 #endif
 void mqReadData();
 void displayOled();
@@ -728,7 +734,7 @@ void loop() {
       hasData = hasData || bh1750Valid();
     #endif
     #if ENABLE_RAIN
-      hasData = hasData || (rainValue > 0);
+      hasData = hasData || rainValid();
     #endif
     #if ENABLE_PMS
       hasData = hasData || (pm2_5 > 0);
@@ -1126,7 +1132,7 @@ String createAndSignNostrEvent(float temp, float humidity, unsigned int pm1_val,
     if (cfg.en_bh1750 && bh1750Valid()) appendReadingTag(readingTags, TAG_LIGHT, MODEL_BH1750, lux);
   #endif
   #if ENABLE_RAIN
-    if (cfg.en_rain) appendReadingTag(readingTags, TAG_RAIN, MODEL_MHRD, (unsigned int)rainValue);
+    if (cfg.en_rain && rainValid()) appendReadingTag(readingTags, TAG_RAIN, MODEL_MHRD, (unsigned int)rainValue);
   #endif
   #if ENABLE_PMS
     if (cfg.en_pms && pmsValid()) {
@@ -1214,7 +1220,7 @@ String createMetadataEvent() {
     if (cfg.en_bh1750) appendSensorAndStatus(metadataTags, TAG_LIGHT, MODEL_BH1750, bh1750Valid());
   #endif
   #if ENABLE_RAIN
-    if (cfg.en_rain) appendSensorAndStatus(metadataTags, TAG_RAIN, MODEL_MHRD, true);
+    if (cfg.en_rain) appendSensorAndStatus(metadataTags, TAG_RAIN, MODEL_MHRD, rainValid());
   #endif
   #if ENABLE_PMS
     if (cfg.en_pms) {
@@ -1447,7 +1453,7 @@ static void publishDashboardStatus() {
     if (cfg.en_bh1750 && bh1750Valid()) { s.has_lux = true; s.lux = lux; }
   #endif
   #if ENABLE_RAIN
-    if (cfg.en_rain) s.rain_raw = rainValue;
+    if (cfg.en_rain && rainValid()) s.rain_raw = rainValue;
   #endif
   #if ENABLE_PMS
     if (cfg.en_pms && pmDataReceived) {
