@@ -4,7 +4,9 @@
 *.swp
 *.swo
 *~
-.DS_Store
-**/.DS_Store
+
+# macOS
+.DS_Store*
+
 include/secrets.h
 include/secrets_station*.h
