@@ -36,7 +36,7 @@ Hookup wire or Dupont jumpers between the dev board and breakouts are assumed by
 
 **MVP ESP32 wiring:** PMS5003 serial RX→**GPIO16**, TX→**GPIO17**. BME280 and BH1750 share **I2C** (**GPIO21**=SDA, **GPIO22**=SCL). Rain sensor analog→**GPIO34**.
 
-Full stripboard build (matrix, **cable plan**, build order): **[docs/mvp-assembly-guide.html](docs/mvp-assembly-guide.html)**.
+Stripboard matrix + cable list: **[docs/mvp-assembly-guide.html](docs/mvp-assembly-guide.html)**. Flash & setup: below.
 
 ### MVP wire colours
 
@@ -52,6 +52,7 @@ Use **industry-standard** colours for power rails, and **project theme** colours
 | PMS TX → ESP RX | Green | other | 2 |
 | ESP TX → PMS RX | Grey | theme | 2 |
 | Rain AO | Blue | other | 2 |
+| Rain pad → MH-RD | Blue | pad sense | 2 |
 
 **Theme palette** (UI brand + preferred dupont stock): orange, purple, white, grey. Orange does double duty as 3.3 V (common convention). Green and blue are only used on 2-wire nets so all four theme colours land on the busier rows.
 

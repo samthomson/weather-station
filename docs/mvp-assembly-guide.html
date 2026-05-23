@@ -11,7 +11,6 @@
     --text:#2a2521;--text-muted:#766c5f;--text-dim:#9a8f80;
     --orange:#d97e2e;--orange-hi:#c66c1f;
     --purple:#7c5fb8;--purple-hi:#6a4ca8;
-    --code-bg:#2a2521;--code-fg:#f3ece1;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html,body { background: var(--bg); }
@@ -23,18 +22,12 @@
   .sub { text-align: center; color: var(--text-muted); font-size: 0.85rem; margin-bottom: 24px; }
   .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 22px; margin-bottom: 18px; box-shadow: 0 1px 3px rgba(42,37,33,.04); }
   .card h2 { font-size: 0.85rem; margin-bottom: 14px; color: var(--purple); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+  .lede { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px; }
   table { width: 100%; border-collapse: collapse; font-size: 0.85rem; color: var(--text); }
   th { background: var(--surface-hi); color: var(--text); padding: 8px 10px; text-align: left; font-weight: 700; border-bottom: 1px solid var(--border); }
   td { padding: 6px 10px; border-bottom: 1px solid var(--border); }
   tr:last-child td { border-bottom: none; }
   .pin { font-family: 'SF Mono', ui-monospace, monospace; font-weight: 800; color: var(--orange-hi); }
-  .row { font-family: 'SF Mono', ui-monospace, monospace; font-weight: 700; background: var(--surface-hi); color: var(--text); padding: 2px 8px; border-radius: 4px; }
-  .badge { display: inline-block; color: #fff; background: var(--orange); padding: 1px 8px; border-radius: 5px; font-size: 0.78rem; font-weight: 800; }
-  .note { font-size: 0.85rem; color: var(--text-muted); margin-top: 10px; line-height: 1.6; }
-  .code { background: var(--code-bg); color: var(--code-fg); border: 1px solid var(--border); padding: 14px; border-radius: 10px; font-family: 'SF Mono', ui-monospace, monospace; font-size: 0.82rem; white-space: pre; margin: 8px 0; }
-  ol.steps { font-size: 0.9rem; line-height: 1.7; padding-left: 22px; color: var(--text); }
-  ol.steps li { margin-bottom: 6px; }
-  ol.steps li b { color: var(--orange-hi); }
   ::selection { background: var(--orange); color: #fff; }
   table.matrix td, table.matrix th { vertical-align: middle; padding: 10px 8px; }
   table.matrix thead th {
@@ -120,8 +113,19 @@
   .wire-chip.wire-inline {
     padding: 2px 7px;
     font-size: 0.62rem;
-    margin-right: 5px;
+    margin: 2px 4px 2px 0;
     vertical-align: middle;
+  }
+  .cables td:last-child { line-height: 2; }
+  .shop-group td {
+    background: var(--surface-hi);
+    font-size: 0.78rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--purple);
+    padding: 10px;
+    border-bottom: 1px solid var(--border);
   }
   table.matrix tbody td.conn { white-space: nowrap; }
 
@@ -142,23 +146,11 @@
 <div class="brand-bar"></div>
 
 <h1><span class="dot"></span>Weather Station <span style="color:var(--text-dim);font-weight:400">— Stripboard Build</span></h1>
-<p class="sub">30-pin ESP32 · 6×9 cm stripboard (horizontal rows) · MVP v0.∞.1</p>
-
-<!-- ==================== STRIPBOARD BASICS ==================== -->
-<div class="card">
-<h2>How the stripboard works</h2>
-<p class="note" style="margin-top:0;">
-Hold the board with holes up, copper strips on the bottom (you solder on the copper side).<br><br>
-<b>One horizontal row = one electrical connection.</b> Every hole on that row is linked by the copper underneath. Put every wire that should be connected into <b>any hole on the same row</b>.<br><br>
-<b>Rows do not connect to each other.</b> Row 3 and row 4 are separate unless you add a wire between them.<br><br>
-<b>Do not solder into a breadboard.</b> On stripboard you push the wire through from the top (no copper side), bend the leg slightly, flip the board, and solder on the copper strip.<br><br>
-<b>ESP32 stays off the board.</b> Use jumper wires: female end on ESP32 pin, solder the male end into a hole on the correct row.
-</p>
-</div>
+<p class="sub">30-pin ESP32 · 6×9 cm stripboard · rows 1–8 from top</p>
 
 <div class="card">
-<h2>Stripboard matrix (one column per breakout)</h2>
-<p class="note" style="margin-top:0;">Count copper rows from the <b>top</b> of the stripboard. Each table row is one copper trace: solder the listed pin from each column into <b>any hole on that same row</b>. Use rows 1–8 only; row 9+ is unused (cut shorter for the enclosure if you like). A dash means that breakout has no connection on that row.</p>
+<h2>Stripboard matrix</h2>
+<p class="lede">One row = one net. Solder each pin into any hole on that row. Male dupont leg through hole, bend on copper side. ESP32 off-board (F on ESP, M soldered).</p>
 
 <div class="matrix-wrap">
 <table class="matrix">
@@ -177,7 +169,7 @@ Hold the board with holes up, copper strips on the bottom (you solder on the cop
 <tr>
   <th scope="row">1</th>
   <td class="meta net"><span class="pin">GND</span></td>
-  <td class="mod-esp conn"><span class="wire-chip black wire-inline">Black</span><span class="pin">GND</span> <span style="white-space:nowrap;font-size:0.9em;color:#475569;font-weight:600">(left rail · pin&nbsp;2)</span></td>
+  <td class="mod-esp conn"><span class="wire-chip black wire-inline">Black</span><span class="pin">GND</span> <span style="white-space:nowrap;font-size:0.9em;color:#475569;font-weight:600">(left · pin&nbsp;2)</span></td>
   <td class="mod-bme conn"><span class="wire-chip black wire-inline">Black</span><b>GND</b></td>
   <td class="mod-bh conn"><span class="wire-chip black wire-inline">Black</span><b>GND</b></td>
   <td class="mod-pms conn"><span class="wire-chip black wire-inline">Black</span><b>GND</b></td>
@@ -216,7 +208,7 @@ Hold the board with holes up, copper strips on the bottom (you solder on the cop
   <td class="mod-esp conn"><span class="wire-chip green wire-inline">Green</span><span class="pin">RX2</span></td>
   <td class="mod-bme na">—</td>
   <td class="mod-bh na">—</td>
-  <td class="mod-pms conn"><span class="wire-chip green wire-inline">Green</span><b>TXD</b> <span style="opacity:.85">(TX)</span></td>
+  <td class="mod-pms conn"><span class="wire-chip green wire-inline">Green</span><b>TXD</b></td>
   <td class="mod-rain na">—</td>
 </tr>
 <tr>
@@ -225,13 +217,13 @@ Hold the board with holes up, copper strips on the bottom (you solder on the cop
   <td class="mod-esp conn"><span class="wire-chip grey wire-inline">Grey</span><span class="pin">TX2</span></td>
   <td class="mod-bme na">—</td>
   <td class="mod-bh na">—</td>
-  <td class="mod-pms conn"><span class="wire-chip grey wire-inline">Grey</span><b>RXD</b> <span style="opacity:.85">(RX)</span></td>
+  <td class="mod-pms conn"><span class="wire-chip grey wire-inline">Grey</span><b>RXD</b></td>
   <td class="mod-rain na">—</td>
 </tr>
 <tr>
   <th scope="row">7</th>
   <td class="meta net"><span class="pin">5V</span></td>
-  <td class="mod-esp conn"><span class="wire-chip red wire-inline">Red</span><span class="pin">VIN</span> <span style="white-space:nowrap;font-size:0.9em;font-weight:600;color:#475569">(USB-backed)</span></td>
+  <td class="mod-esp conn"><span class="wire-chip red wire-inline">Red</span><span class="pin">VIN</span></td>
   <td class="mod-bme na">—</td>
   <td class="mod-bh na">—</td>
   <td class="mod-pms conn"><span class="wire-chip red wire-inline">Red</span><b>VCC</b></td>
@@ -240,7 +232,7 @@ Hold the board with holes up, copper strips on the bottom (you solder on the cop
 <tr>
   <th scope="row">8</th>
   <td class="meta net">Rain analog</td>
-  <td class="mod-esp conn"><span class="wire-chip blue wire-inline">Blue</span><span class="pin">D34</span> <span style="white-space:nowrap;font-size:0.9em;font-weight:600;color:#475569">(ADC1)</span></td>
+  <td class="mod-esp conn"><span class="wire-chip blue wire-inline">Blue</span><span class="pin">D34</span></td>
   <td class="mod-bme na">—</td>
   <td class="mod-bh na">—</td>
   <td class="mod-pms na">—</td>
@@ -249,133 +241,117 @@ Hold the board with holes up, copper strips on the bottom (you solder on the cop
 </tbody>
 </table>
 </div>
-<p class="note"><strong>Power (industry standard):</strong> <span class="wire-chip black wire-inline">Black</span> GND · <span class="wire-chip red wire-inline">Red</span> 5V — label on the stripboard edge.<br><strong>Project theme</strong> (orange · purple · white · grey — see README): <span class="wire-chip orange wire-inline">Orange</span> 3V3 (×4) · <span class="wire-chip purple wire-inline">Purple</span> SDA (×3) · <span class="wire-chip white wire-inline">White</span> SCL (×3) · <span class="wire-chip grey wire-inline">Grey</span> ESP TX→PMS RX (×2).<br><strong>Other signals:</strong> <span class="wire-chip green wire-inline">Green</span> PMS TX→ESP RX (×2) · <span class="wire-chip blue wire-inline">Blue</span> rain AO (×2). UART = two rows, two colours.<br><br><strong>23 soldered connections</strong> on the stripboard. MH-RD pad cable polarity does not matter; dry reads ~4095 on D34.</p>
 </div>
 
-<!-- ==================== CABLE PLAN ==================== -->
 <div class="card">
-<h2>Cable plan</h2>
-<p class="note" style="margin-top:0;">The matrix above is the electrical plan. This section is the <b>physical harness</b> plan — what to cut or buy, and how long.</p>
-
-<h3 style="font-size:0.8rem;text-transform:uppercase;letter-spacing:.06em;color:var(--purple);margin:16px 0 8px;">Recommended: stubs on the base + column jumpers</h3>
-<p class="note" style="margin-top:0;">
-<b>Do not</b> run one 40&nbsp;cm dupont all the way from a stripboard solder joint up to a remote module. Tugs in the column would stress the solder.<br><br>
-<b>Instead:</b><br>
-1. <b>Base stubs</b> (~15&nbsp;cm, female–male): <b>male</b> end soldered into the stripboard; <b>female</b> end sits at the base module bulkhead (zip-tied / glued so nothing pulls on the joint).<br>
-2. <b>Column harness</b> (~35–40&nbsp;cm, male–female): <b>male</b> into the stub at the base; <b>female</b> onto the breakout pins in the upper module. Unplug here when servicing a tier.<br>
-3. <b>ESP32 harness</b> (~15&nbsp;cm, all eight colours): same stub idea — fixed inside the base, ESP stays socketed on female ends only.<br><br>
-USB power is separate: one USB cable exits the base (not counted below).
-</p>
-
-<p class="note"><b>Dupont gender cheat sheet:</b> breakouts and ESP32 pins are <b>male</b> headers → cable needs a <b>female</b> dupont on that end. Stripboard wants a <b>male</b> pin through the hole to solder.</p>
-
-<h3 style="font-size:0.8rem;text-transform:uppercase;letter-spacing:.06em;color:var(--purple);margin:16px 0 8px;">ESP32 → stripboard (stays in base module)</h3>
-<table>
-<tr><th>Qty</th><th>Length</th><th>Type</th><th>Colours (one each)</th></tr>
-<tr><td>8</td><td>15&nbsp;cm</td><td>F–M dupont</td><td><span class="wire-chip black wire-inline">Black</span> <span class="wire-chip orange wire-inline">Orange</span> <span class="wire-chip purple wire-inline">Purple</span> <span class="wire-chip white wire-inline">White</span> <span class="wire-chip green wire-inline">Green</span> <span class="wire-chip grey wire-inline">Grey</span> <span class="wire-chip red wire-inline">Red</span> <span class="wire-chip blue wire-inline">Blue</span></td></tr>
-</table>
-<p class="note">Female on ESP32; male soldered to rows 1–8 per matrix. Keep this harness short and fixed — do not unplug during normal use.</p>
-
-<h3 style="font-size:0.8rem;text-transform:uppercase;letter-spacing:.06em;color:var(--purple);margin:16px 0 8px;">Per sensor — base stub (soldered) + column (pluggable)</h3>
-<table>
-<tr><th>Module</th><th>Stub on stripboard</th><th>Column to upper module</th><th>Notes</th></tr>
+<h2>Cables</h2>
+<p class="lede">Stub 15&nbsp;cm F–M (perfboard) · column 30&nbsp;cm M–M (stack) · tail 10&nbsp;cm F–M (BME280, BH1750, PMS5003) or 10&nbsp;cm F–F (rain pad). MH-RD board: stub + column only.</p>
+<table class="cables">
+<tr><th>Module</th><th>Wires</th><th>Ends</th><th>Colours</th></tr>
+<tr>
+  <td><b>ESP32</b></td>
+  <td>8× 15&nbsp;cm</td>
+  <td>F–M</td>
+  <td>
+    <span class="wire-chip black wire-inline">Black ×1</span>
+    <span class="wire-chip orange wire-inline">Orange ×1</span>
+    <span class="wire-chip purple wire-inline">Purple ×1</span>
+    <span class="wire-chip white wire-inline">White ×1</span>
+    <span class="wire-chip green wire-inline">Green ×1</span>
+    <span class="wire-chip grey wire-inline">Grey ×1</span>
+    <span class="wire-chip red wire-inline">Red ×1</span>
+    <span class="wire-chip blue wire-inline">Blue ×1</span>
+  </td>
+</tr>
 <tr>
   <td><b>BME280</b></td>
-  <td>4× F–M 15&nbsp;cm<br><span class="wire-chip black wire-inline">Black</span> <span class="wire-chip orange wire-inline">Orange</span> <span class="wire-chip purple wire-inline">Purple</span> <span class="wire-chip white wire-inline">White</span></td>
-  <td>4× M–F 35&nbsp;cm, same colours</td>
-  <td>Rows 1–4</td>
+  <td>4× 15&nbsp;cm<br>4× 30&nbsp;cm<br>4× 10&nbsp;cm</td>
+  <td>F–M stub<br>M–M column<br>F–M sensor</td>
+  <td>
+    <span class="wire-chip black wire-inline">Black ×3</span>
+    <span class="wire-chip orange wire-inline">Orange ×3</span>
+    <span class="wire-chip purple wire-inline">Purple ×3</span>
+    <span class="wire-chip white wire-inline">White ×3</span>
+  </td>
 </tr>
 <tr>
   <td><b>BH1750</b></td>
-  <td>4× F–M 15&nbsp;cm<br><span class="wire-chip black wire-inline">Black</span> <span class="wire-chip orange wire-inline">Orange</span> <span class="wire-chip purple wire-inline">Purple</span> <span class="wire-chip white wire-inline">White</span></td>
-  <td>4× M–F 35&nbsp;cm, same colours</td>
-  <td>Rows 1–4 (shares I²C rails with BME)</td>
+  <td>4× 15&nbsp;cm<br>4× 30&nbsp;cm<br>4× 10&nbsp;cm</td>
+  <td>F–M stub<br>M–M column<br>F–M sensor</td>
+  <td>
+    <span class="wire-chip black wire-inline">Black ×3</span>
+    <span class="wire-chip orange wire-inline">Orange ×3</span>
+    <span class="wire-chip purple wire-inline">Purple ×3</span>
+    <span class="wire-chip white wire-inline">White ×3</span>
+  </td>
 </tr>
 <tr>
   <td><b>PMS5003</b></td>
-  <td>4× F–M 15&nbsp;cm<br><span class="wire-chip black wire-inline">Black</span> <span class="wire-chip green wire-inline">Green</span> <span class="wire-chip grey wire-inline">Grey</span> <span class="wire-chip red wire-inline">Red</span></td>
-  <td>4× M–F 35&nbsp;cm, same colours</td>
-  <td>Rows 1, 5–7 (5&nbsp;V on row 7, not 3V3)</td>
+  <td>4× 15&nbsp;cm<br>4× 30&nbsp;cm<br>4× 10&nbsp;cm</td>
+  <td>F–M stub<br>M–M column<br>F–M sensor</td>
+  <td>
+    <span class="wire-chip black wire-inline">Black ×3</span>
+    <span class="wire-chip green wire-inline">Green ×3</span>
+    <span class="wire-chip grey wire-inline">Grey ×3</span>
+    <span class="wire-chip red wire-inline">Red ×3</span>
+  </td>
 </tr>
 <tr>
-  <td><b>MH-RD rain</b></td>
-  <td>3× F–M 15&nbsp;cm<br><span class="wire-chip black wire-inline">Black</span> <span class="wire-chip orange wire-inline">Orange</span> <span class="wire-chip blue wire-inline">Blue</span></td>
-  <td>3× M–F 35&nbsp;cm, same colours</td>
-  <td>Rows 1, 2, 8</td>
+  <td><b>MH-RD board</b></td>
+  <td>3× 15&nbsp;cm<br>3× 30&nbsp;cm</td>
+  <td>F–M stub<br>M–M column</td>
+  <td>
+    <span class="wire-chip black wire-inline">Black ×2</span>
+    <span class="wire-chip orange wire-inline">Orange ×2</span>
+    <span class="wire-chip blue wire-inline">Blue ×2</span>
+  </td>
+</tr>
+<tr>
+  <td><b>Rain pad → MH-RD</b></td>
+  <td>2× 10&nbsp;cm</td>
+  <td>F–F</td>
+  <td>
+    <span class="wire-chip blue wire-inline">Blue ×2</span>
+  </td>
 </tr>
 </table>
 
-<h3 style="font-size:0.8rem;text-transform:uppercase;letter-spacing:.06em;color:var(--purple);margin:16px 0 8px;">Rain pad only (not on stripboard)</h3>
-<p class="note" style="margin-top:0;">The resistive pad uses a separate <b>2-wire</b> cable (often screw terminals on the MH-RD board). Length depends on pad placement — typically 20–40&nbsp;cm. Colour does not matter; polarity does not matter. Usually ships with the module; if not, any 2-core wire is fine.</p>
-
-<h3 style="font-size:0.8rem;text-transform:uppercase;letter-spacing:.06em;color:var(--purple);margin:16px 0 8px;">Shopping checklist (dupont)</h3>
-<table>
-<tr><th>Harness</th><th>Count</th><th>Length</th><th>Dupont</th></tr>
-<tr><td>ESP32 → stripboard</td><td>8</td><td>15&nbsp;cm</td><td>F–M</td></tr>
-<tr><td>Sensor base stubs (soldered)</td><td>15</td><td>15&nbsp;cm</td><td>F–M</td></tr>
-<tr><td>Sensor column links (pluggable)</td><td>15</td><td>35&nbsp;cm</td><td>M–F</td></tr>
-<tr><td colspan="4" style="font-size:0.85rem;color:var(--text-muted)"><b>Colour totals for stubs + columns combined:</b> black ×5 · orange ×4 · purple ×3 · white ×3 · green ×2 · grey ×2 · red ×2 · blue ×2 (38 wires if every run is a separate cable; buy a few spares per colour).</td></tr>
+<h3 style="font-size:0.8rem;text-transform:uppercase;letter-spacing:.06em;color:var(--purple);margin:20px 0 8px;">Shopping list</h3>
+<table class="cables">
+<tr class="shop-group"><td colspan="2">10&nbsp;cm · F–M · sensor tails (BME280, BH1750, PMS5003)</td></tr>
+<tr><th>Qty</th><th>Colour</th></tr>
+<tr><td>3</td><td><span class="wire-chip black wire-inline">Black</span></td></tr>
+<tr><td>2</td><td><span class="wire-chip orange wire-inline">Orange</span></td></tr>
+<tr><td>2</td><td><span class="wire-chip purple wire-inline">Purple</span></td></tr>
+<tr><td>2</td><td><span class="wire-chip white wire-inline">White</span></td></tr>
+<tr><td>1</td><td><span class="wire-chip green wire-inline">Green</span></td></tr>
+<tr><td>1</td><td><span class="wire-chip grey wire-inline">Grey</span></td></tr>
+<tr><td>1</td><td><span class="wire-chip red wire-inline">Red</span></td></tr>
+<tr class="shop-group"><td colspan="2">10&nbsp;cm · F–F · rain pad → MH-RD</td></tr>
+<tr><th>Qty</th><th>Colour</th></tr>
+<tr><td>2</td><td><span class="wire-chip blue wire-inline">Blue</span></td></tr>
+<tr class="shop-group"><td colspan="2">15&nbsp;cm · F–M · perfboard stubs (all modules + ESP32)</td></tr>
+<tr><th>Qty</th><th>Colour</th></tr>
+<tr><td>5</td><td><span class="wire-chip black wire-inline">Black</span></td></tr>
+<tr><td>4</td><td><span class="wire-chip orange wire-inline">Orange</span></td></tr>
+<tr><td>3</td><td><span class="wire-chip purple wire-inline">Purple</span></td></tr>
+<tr><td>3</td><td><span class="wire-chip white wire-inline">White</span></td></tr>
+<tr><td>2</td><td><span class="wire-chip green wire-inline">Green</span></td></tr>
+<tr><td>2</td><td><span class="wire-chip grey wire-inline">Grey</span></td></tr>
+<tr><td>2</td><td><span class="wire-chip red wire-inline">Red</span></td></tr>
+<tr><td>2</td><td><span class="wire-chip blue wire-inline">Blue</span></td></tr>
+<tr class="shop-group"><td colspan="2">30&nbsp;cm · M–M · column (all remote modules)</td></tr>
+<tr><th>Qty</th><th>Colour</th></tr>
+<tr><td>4</td><td><span class="wire-chip black wire-inline">Black</span></td></tr>
+<tr><td>3</td><td><span class="wire-chip orange wire-inline">Orange</span></td></tr>
+<tr><td>2</td><td><span class="wire-chip purple wire-inline">Purple</span></td></tr>
+<tr><td>2</td><td><span class="wire-chip white wire-inline">White</span></td></tr>
+<tr><td>1</td><td><span class="wire-chip green wire-inline">Green</span></td></tr>
+<tr><td>1</td><td><span class="wire-chip grey wire-inline">Grey</span></td></tr>
+<tr><td>1</td><td><span class="wire-chip red wire-inline">Red</span></td></tr>
+<tr><td>1</td><td><span class="wire-chip blue wire-inline">Blue</span></td></tr>
+<tr><td colspan="2" style="font-weight:700;padding-top:10px"><b>52</b> wires total</td></tr>
 </table>
-
-<p class="note"><b>One long cable per sensor?</b> Possible for a bench test, but not recommended for the station: a single 40&nbsp;cm F–M from stripboard to breakout means every snag pulls on solder. Stubs + column adds one extra plug per wire and costs more dupont, but matches how you route through the central column and makes upper modules removable without desoldering.</p>
-</div>
-
-<!-- ==================== BUILD ORDER ==================== -->
-<div class="card">
-<h2>Build order</h2>
-<ol class="steps">
-<li>Mark rows 1–8 on the top of the board with pencil (count from the top).</li>
-<li><b>Row 1 (<span class="pin">GND</span>):</b> Into <b>any holes on row 1</b>, connect <span class="pin">GND</span> from ESP32 (left rail), BME280 <b>GND</b>, BH1750 <b>GND</b>, PMS5003 <b>GND</b>, and MH-RD <b>GND</b>. Spread holes so solder joints are not cramped.</li>
-<li><b>Row 2 (<span class="pin">3V3</span>):</b> ESP32 <span class="pin">3V3</span>, BME280 <b>VCC</b>, BH1750 <b>VCC</b>, MH-RD <b>VCC</b> → row 2.</li>
-<li><b>Row 3 (I²C <span class="pin">SDA</span>, purple):</b> ESP32 <span class="pin">D21</span>, BME280 <b>SDA</b>, BH1750 <b>SDA</b> → row 3.</li>
-<li><b>Row 4 (I²C <span class="pin">SCL</span>, white):</b> ESP32 <span class="pin">D22</span>, BME280 <b>SCL</b>, BH1750 <b>SCL</b> → row 4.</li>
-<li><b>Row 5 (PMS TX→ESP, green):</b> PMS5003 <b>TXD</b> + ESP32 <span class="pin">RX2</span> → row 5.</li>
-<li><b>Row 6 (ESP TX→PMS, grey):</b> ESP32 <span class="pin">TX2</span> + PMS5003 <b>RXD</b> → row 6.</li>
-<li><b>Row 7 (5&nbsp;V, red):</b> ESP32 <span class="pin">VIN</span> + PMS5003 <b>VCC</b> → row 7.</li>
-<li><b>Row 8 (rain analog, blue):</b> ESP32 <span class="pin">D34</span> + MH-RD <b>AO</b> → row 8.</li>
-<li>Check: no solder bridges between <b>adjacent rows</b> (use a phone torch on the copper side).</li>
-<li>Plug USB, confirm BME/BH/rain/PM on serial or relay.</li>
-<li>Solder <b>base stubs</b> (15&nbsp;cm F–M) per the cable plan; strain-relief stub females at the base bulkhead.</li>
-<li>Mount board in enclosure; plug <b>column harnesses</b> (35&nbsp;cm M–F) at the bulkhead when fitting upper modules.</li>
-</ol>
-</div>
-
-<!-- ==================== ESP32 PINOUT ==================== -->
-<div class="card">
-<h2>ESP32 pin reference (USB at top)</h2>
-<table>
-<tr><th>LEFT (top → bottom)</th><th>RIGHT (top → bottom)</th></tr>
-<tr><td>1. <span class="pin" style="color:#e97a0b">3V3</span> → row 2</td><td>1. <span class="pin" style="color:#dc2626">VIN</span> → row 7</td></tr>
-<tr><td>2. <span class="pin" style="color:#555">GND</span> → row 1</td><td>2. <span class="pin">GND</span> (not used)</td></tr>
-<tr><td>…</td><td>…</td></tr>
-<tr><td>6. <span class="pin" style="color:#16a34a">RX2</span> → row 5</td><td>…</td></tr>
-<tr><td>7. <span class="pin" style="color:#64748b">TX2</span> → row 6</td><td>…</td></tr>
-<tr><td>11. <span class="pin" style="color:#7c3aed">D21</span> → row 3</td><td>…</td></tr>
-<tr><td>14. <span class="pin" style="color:#64748b">D22</span> → row 4</td><td>…</td></tr>
-<tr><td>…</td><td>12. <span class="pin" style="color:#2563eb">D34</span> → row 8</td></tr>
-</table>
-</div>
-
-<!-- ==================== FIRMWARE ==================== -->
-<div class="card">
-<h2>Flash firmware</h2>
-<div class="code"># Any MVP env will do; the same firmware runs on every MVP board.
-pio run -e esp32dev_mvp1 --target upload
-pio device monitor -e esp32dev_mvp1</div>
-<p class="note">All <code>esp32dev_mvp1</code> ... <code>esp32dev_mvp5</code> envs build the same firmware; the per-env <code>secrets_station_mvpN.h</code> only seeds the first-boot defaults. Everything (WiFi, Nostr key/relay, station name, sensor toggles) is editable any time from the dashboard.</p>
-</div>
-
-<!-- ==================== CONFIGURE FROM PHONE ==================== -->
-<div class="card">
-<h2>Configure from your phone</h2>
-<ol>
-<li>Plug the station in via USB.</li>
-<li>On your phone, open WiFi settings. Join the open network named <code>WeatherStation-XXXXXX</code> (the suffix is the last 6 hex of the board's MAC).</li>
-<li>A "Sign in to network" sheet should pop up automatically and show the dashboard. If it doesn't, open a browser and go to <code>http://192.168.4.1</code>.</li>
-<li>Fill in your <b>home WiFi</b>, give the station a <b>name</b> and (optionally) a <b>geohash</b> location, pick which <b>sensors</b> you actually have wired, and hit Save. The station joins your home WiFi and starts publishing.</li>
-<li>You can reconnect to the same <code>WeatherStation-XXXXXX</code> network any time later to change settings. There is no app to install; nothing is hidden behind a router IP.</li>
-</ol>
-<p class="note">The setup WiFi is open (no password) and stays on even after the station is connected to your home network — that's deliberate so you can always get back in. If you forget your home WiFi password or move house, you can re-enter it the same way.</p>
 </div>
 
 </div>
