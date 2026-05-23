@@ -271,11 +271,23 @@ void lightData();
 #endif
 #if ENABLE_RAIN
 void rainData();
-// GPIO34 has no internal pull; floating reads ~0. MH-RD drives AO when wired.
-static const unsigned RAIN_ADC_MIN = 32;
+// GPIO34 has no internal pull, so a "not connected" pin reads random noise
+// across the full ADC range. We treat the sensor as present only after we've
+// seen several consecutive stable, high (dry) readings -- a signature a
+// floating pin never holds. Once latched, every subsequent reading is treated
+// as real weather data regardless of value.
+static unsigned rainSpread = 999;
+static unsigned rainSampleCount = 0;
+static unsigned rainDryStreak = 0;
+static bool rainEverConnected = false;
 
-static bool rainValid() {
-  return rainValue >= RAIN_ADC_MIN;
+static bool rainValid() { return rainEverConnected; }
+
+static void rainUpdateConnectedLatch(unsigned avg, unsigned spread) {
+  if (rainEverConnected) return;
+  if (spread <= 80 && avg >= 1800) rainDryStreak++;
+  else rainDryStreak = 0;
+  if (rainDryStreak >= 5) rainEverConnected = true;
 }
 #endif
 void mqReadData();
@@ -944,9 +956,28 @@ void lightData() {
 
 #if ENABLE_RAIN
 void rainData() {
-  rainValue = analogRead(RAIN_PIN);
+  unsigned vals[5];
+  for (int i = 0; i < 5; i++) {
+    vals[i] = analogRead(RAIN_PIN);
+    delayMicroseconds(800);
+  }
+  unsigned vmin = vals[0], vmax = vals[0], sum = 0;
+  for (int i = 0; i < 5; i++) {
+    if (vals[i] < vmin) vmin = vals[i];
+    if (vals[i] > vmax) vmax = vals[i];
+    sum += vals[i];
+  }
+  rainValue = sum / 5;
+  rainSpread = vmax - vmin;
+  rainSampleCount++;
+  rainUpdateConnectedLatch(rainValue, rainSpread);
   // Note: Higher value = drier, Lower value = more water
-  Serial.print("Rain sensor: "); Serial.println(rainValue);
+  Serial.print("Rain sensor: avg=");
+  Serial.print(rainValue);
+  Serial.print(" spread=");
+  Serial.print(rainSpread);
+  Serial.print(" connected=");
+  Serial.println(rainEverConnected ? "yes" : "no");
 }
 #endif
 
@@ -1380,7 +1411,15 @@ static void initRuntimeSensors() {
     }
   #endif
   #if ENABLE_RAIN
-    if (cfg.en_rain) pinMode(RAIN_PIN, INPUT);
+    if (cfg.en_rain) {
+      pinMode(RAIN_PIN, INPUT);
+    } else {
+      rainEverConnected = false;
+      rainDryStreak = 0;
+      rainSampleCount = 0;
+      rainSpread = 999;
+      rainValue = 0;
+    }
   #endif
 }
 
