@@ -116,7 +116,42 @@
     margin: 2px 4px 2px 0;
     vertical-align: middle;
   }
-  .cables td:last-child { line-height: 2; }
+  .wire-scale {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 7px 0;
+  }
+  .wire-bar {
+    flex: 0 0 auto;
+    display: block;
+    height: 10px;
+    border-radius: 3px;
+    border: 1px solid rgba(0,0,0,.18);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.25), 0 1px 2px rgba(0,0,0,.08);
+  }
+  .wire-bar.len-10 { width: 100px; }
+  .wire-bar.len-15 { width: 150px; }
+  .wire-bar.len-30 { width: 300px; max-width: calc(100% - 5rem); }
+  .wire-bar.black  { background: #0f172a; border-color: #0f172a; }
+  .wire-bar.orange { background: #ea580c; border-color: #c2410c; }
+  .wire-bar.blue   { background: #2563eb; border-color: #1d4ed8; }
+  .wire-bar.yellow { background: #ca8a04; border-color: #a16207; }
+  .wire-bar.green  { background: #16a34a; border-color: #15803d; }
+  .wire-bar.grey   { background: #64748b; border-color: #475569; }
+  .wire-bar.red    { background: #dc2626; border-color: #b91c1c; }
+  .wire-bar.purple { background: #7c3aed; border-color: #6d28d9; }
+  .wire-bar.white  { background: #f8fafc; border-color: #94a3b8; }
+  .wire-scale-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--text);
+    min-width: 3.5rem;
+  }
+  .wire-list { padding: 4px 0 8px; }
+  .cables td.wire-col { padding: 8px 10px; vertical-align: middle; }
+  .cables td.wire-col .wire-scale { margin: 3px 0; }
+  .cables td.qty-col { width: 3rem; text-align: center; font-weight: 700; color: var(--text-muted); }
   .shop-group td {
     background: var(--surface-hi);
     font-size: 0.78rem;
@@ -125,6 +160,14 @@
     letter-spacing: 0.06em;
     color: var(--purple);
     padding: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .shop-subgroup td {
+    background: var(--surface);
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    padding: 8px 10px 8px 14px;
     border-bottom: 1px solid var(--border);
   }
   table.matrix tbody td.conn { white-space: nowrap; }
@@ -245,111 +288,196 @@
 
 <div class="card">
 <h2>Cables</h2>
-<p class="lede">Stub 15&nbsp;cm F–M (perfboard) · column 30&nbsp;cm M–M (stack) · tail 10&nbsp;cm F–M (BME280, BH1750, PMS5003) or 10&nbsp;cm F–F (rain pad). MH-RD board: stub + column only.</p>
+<p class="lede">Male end soldered to perfboard on stubs. Column plugs stub ↔ tail at each tier. Wire bars are to scale (10&nbsp;px wide = 1&nbsp;cm).</p>
 <table class="cables">
-<tr><th>Module</th><th>Wires</th><th>Ends</th><th>Colours</th></tr>
-<tr>
-  <td><b>ESP32</b></td>
-  <td>8× 15&nbsp;cm</td>
-  <td>F–M</td>
-  <td>
-    <span class="wire-chip black wire-inline">Black ×1</span>
-    <span class="wire-chip orange wire-inline">Orange ×1</span>
-    <span class="wire-chip purple wire-inline">Purple ×1</span>
-    <span class="wire-chip white wire-inline">White ×1</span>
-    <span class="wire-chip green wire-inline">Green ×1</span>
-    <span class="wire-chip grey wire-inline">Grey ×1</span>
-    <span class="wire-chip red wire-inline">Red ×1</span>
-    <span class="wire-chip blue wire-inline">Blue ×1</span>
-  </td>
-</tr>
-<tr>
-  <td><b>BME280</b></td>
-  <td>4× 15&nbsp;cm<br>4× 30&nbsp;cm<br>4× 10&nbsp;cm</td>
-  <td>F–M stub<br>M–M column<br>F–M sensor</td>
-  <td>
-    <span class="wire-chip black wire-inline">Black ×3</span>
-    <span class="wire-chip orange wire-inline">Orange ×3</span>
-    <span class="wire-chip purple wire-inline">Purple ×3</span>
-    <span class="wire-chip white wire-inline">White ×3</span>
-  </td>
-</tr>
-<tr>
-  <td><b>BH1750</b></td>
-  <td>4× 15&nbsp;cm<br>4× 30&nbsp;cm<br>4× 10&nbsp;cm</td>
-  <td>F–M stub<br>M–M column<br>F–M sensor</td>
-  <td>
-    <span class="wire-chip black wire-inline">Black ×3</span>
-    <span class="wire-chip orange wire-inline">Orange ×3</span>
-    <span class="wire-chip purple wire-inline">Purple ×3</span>
-    <span class="wire-chip white wire-inline">White ×3</span>
-  </td>
-</tr>
-<tr>
-  <td><b>PMS5003</b></td>
-  <td>4× 15&nbsp;cm<br>4× 30&nbsp;cm<br>4× 10&nbsp;cm</td>
-  <td>F–M stub<br>M–M column<br>F–M sensor</td>
-  <td>
-    <span class="wire-chip black wire-inline">Black ×3</span>
-    <span class="wire-chip green wire-inline">Green ×3</span>
-    <span class="wire-chip grey wire-inline">Grey ×3</span>
-    <span class="wire-chip red wire-inline">Red ×3</span>
-  </td>
-</tr>
-<tr>
-  <td><b>MH-RD board</b></td>
-  <td>3× 15&nbsp;cm<br>3× 30&nbsp;cm</td>
-  <td>F–M stub<br>M–M column</td>
-  <td>
-    <span class="wire-chip black wire-inline">Black ×2</span>
-    <span class="wire-chip orange wire-inline">Orange ×2</span>
-    <span class="wire-chip blue wire-inline">Blue ×2</span>
-  </td>
-</tr>
-<tr>
-  <td><b>Rain pad → MH-RD</b></td>
-  <td>2× 10&nbsp;cm</td>
-  <td>F–F</td>
-  <td>
-    <span class="wire-chip blue wire-inline">Blue ×2</span>
-  </td>
-</tr>
+<tr class="shop-group"><td colspan="2">ESP32</td></tr>
+<tr class="shop-subgroup"><td colspan="2">15&nbsp;cm · F–M · perfboard stubs</td></tr>
+<tr><td colspan="2" class="wire-col"><div class="wire-list">
+  <div class="wire-scale"><span class="wire-bar len-15 black"></span><span class="wire-scale-label">Black</span></div>
+  <div class="wire-scale"><span class="wire-bar len-15 orange"></span><span class="wire-scale-label">Orange</span></div>
+  <div class="wire-scale"><span class="wire-bar len-15 purple"></span><span class="wire-scale-label">Purple</span></div>
+  <div class="wire-scale"><span class="wire-bar len-15 white"></span><span class="wire-scale-label">White</span></div>
+  <div class="wire-scale"><span class="wire-bar len-15 green"></span><span class="wire-scale-label">Green</span></div>
+  <div class="wire-scale"><span class="wire-bar len-15 grey"></span><span class="wire-scale-label">Grey</span></div>
+  <div class="wire-scale"><span class="wire-bar len-15 red"></span><span class="wire-scale-label">Red</span></div>
+  <div class="wire-scale"><span class="wire-bar len-15 blue"></span><span class="wire-scale-label">Blue</span></div>
+</div></td></tr>
+
+<tr class="shop-group"><td colspan="2">BME280</td></tr>
+<tr class="shop-subgroup"><td colspan="2">15&nbsp;cm · F–M · perfboard stubs</td></tr>
+<tr><td colspan="2" class="wire-col"><div class="wire-list">
+  <div class="wire-scale"><span class="wire-bar len-15 black"></span><span class="wire-scale-label">Black</span></div>
+  <div class="wire-scale"><span class="wire-bar len-15 orange"></span><span class="wire-scale-label">Orange</span></div>
+  <div class="wire-scale"><span class="wire-bar len-15 purple"></span><span class="wire-scale-label">Purple</span></div>
+  <div class="wire-scale"><span class="wire-bar len-15 white"></span><span class="wire-scale-label">White</span></div>
+</div></td></tr>
+<tr class="shop-subgroup"><td colspan="2">30&nbsp;cm · M–M · column (stack connectors)</td></tr>
+<tr><td colspan="2" class="wire-col"><div class="wire-list">
+  <div class="wire-scale"><span class="wire-bar len-30 black"></span><span class="wire-scale-label">Black</span></div>
+  <div class="wire-scale"><span class="wire-bar len-30 orange"></span><span class="wire-scale-label">Orange</span></div>
+  <div class="wire-scale"><span class="wire-bar len-30 purple"></span><span class="wire-scale-label">Purple</span></div>
+  <div class="wire-scale"><span class="wire-bar len-30 white"></span><span class="wire-scale-label">White</span></div>
+</div></td></tr>
+<tr class="shop-subgroup"><td colspan="2">10&nbsp;cm · F–M · sensor tails</td></tr>
+<tr><td colspan="2" class="wire-col"><div class="wire-list">
+  <div class="wire-scale"><span class="wire-bar len-10 black"></span><span class="wire-scale-label">Black</span></div>
+  <div class="wire-scale"><span class="wire-bar len-10 orange"></span><span class="wire-scale-label">Orange</span></div>
+  <div class="wire-scale"><span class="wire-bar len-10 purple"></span><span class="wire-scale-label">Purple</span></div>
+  <div class="wire-scale"><span class="wire-bar len-10 white"></span><span class="wire-scale-label">White</span></div>
+</div></td></tr>
+
+<tr class="shop-group"><td colspan="2">BH1750</td></tr>
+<tr class="shop-subgroup"><td colspan="2">15&nbsp;cm · F–M · perfboard stubs</td></tr>
+<tr><td colspan="2" class="wire-col"><div class="wire-list">
+  <div class="wire-scale"><span class="wire-bar len-15 black"></span><span class="wire-scale-label">Black</span></div>
+  <div class="wire-scale"><span class="wire-bar len-15 orange"></span><span class="wire-scale-label">Orange</span></div>
+  <div class="wire-scale"><span class="wire-bar len-15 purple"></span><span class="wire-scale-label">Purple</span></div>
+  <div class="wire-scale"><span class="wire-bar len-15 white"></span><span class="wire-scale-label">White</span></div>
+</div></td></tr>
+<tr class="shop-subgroup"><td colspan="2">30&nbsp;cm · M–M · column (stack connectors)</td></tr>
+<tr><td colspan="2" class="wire-col"><div class="wire-list">
+  <div class="wire-scale"><span class="wire-bar len-30 black"></span><span class="wire-scale-label">Black</span></div>
+  <div class="wire-scale"><span class="wire-bar len-30 orange"></span><span class="wire-scale-label">Orange</span></div>
+  <div class="wire-scale"><span class="wire-bar len-30 purple"></span><span class="wire-scale-label">Purple</span></div>
+  <div class="wire-scale"><span class="wire-bar len-30 white"></span><span class="wire-scale-label">White</span></div>
+</div></td></tr>
+<tr class="shop-subgroup"><td colspan="2">10&nbsp;cm · F–M · sensor tails</td></tr>
+<tr><td colspan="2" class="wire-col"><div class="wire-list">
+  <div class="wire-scale"><span class="wire-bar len-10 black"></span><span class="wire-scale-label">Black</span></div>
+  <div class="wire-scale"><span class="wire-bar len-10 orange"></span><span class="wire-scale-label">Orange</span></div>
+  <div class="wire-scale"><span class="wire-bar len-10 purple"></span><span class="wire-scale-label">Purple</span></div>
+  <div class="wire-scale"><span class="wire-bar len-10 white"></span><span class="wire-scale-label">White</span></div>
+</div></td></tr>
+
+<tr class="shop-group"><td colspan="2">PMS5003</td></tr>
+<tr class="shop-subgroup"><td colspan="2">15&nbsp;cm · F–M · perfboard stubs</td></tr>
+<tr><td colspan="2" class="wire-col"><div class="wire-list">
+  <div class="wire-scale"><span class="wire-bar len-15 black"></span><span class="wire-scale-label">Black</span></div>
+  <div class="wire-scale"><span class="wire-bar len-15 green"></span><span class="wire-scale-label">Green</span></div>
+  <div class="wire-scale"><span class="wire-bar len-15 grey"></span><span class="wire-scale-label">Grey</span></div>
+  <div class="wire-scale"><span class="wire-bar len-15 red"></span><span class="wire-scale-label">Red</span></div>
+</div></td></tr>
+<tr class="shop-subgroup"><td colspan="2">30&nbsp;cm · M–M · column (stack connectors)</td></tr>
+<tr><td colspan="2" class="wire-col"><div class="wire-list">
+  <div class="wire-scale"><span class="wire-bar len-30 black"></span><span class="wire-scale-label">Black</span></div>
+  <div class="wire-scale"><span class="wire-bar len-30 green"></span><span class="wire-scale-label">Green</span></div>
+  <div class="wire-scale"><span class="wire-bar len-30 grey"></span><span class="wire-scale-label">Grey</span></div>
+  <div class="wire-scale"><span class="wire-bar len-30 red"></span><span class="wire-scale-label">Red</span></div>
+</div></td></tr>
+<tr class="shop-subgroup"><td colspan="2">10&nbsp;cm · F–M · sensor tails</td></tr>
+<tr><td colspan="2" class="wire-col"><div class="wire-list">
+  <div class="wire-scale"><span class="wire-bar len-10 black"></span><span class="wire-scale-label">Black</span></div>
+  <div class="wire-scale"><span class="wire-bar len-10 green"></span><span class="wire-scale-label">Green</span></div>
+  <div class="wire-scale"><span class="wire-bar len-10 grey"></span><span class="wire-scale-label">Grey</span></div>
+  <div class="wire-scale"><span class="wire-bar len-10 red"></span><span class="wire-scale-label">Red</span></div>
+</div></td></tr>
+
+<tr class="shop-group"><td colspan="2">MH-RD board</td></tr>
+<tr class="shop-subgroup"><td colspan="2">15&nbsp;cm · F–M · perfboard stubs</td></tr>
+<tr><td colspan="2" class="wire-col"><div class="wire-list">
+  <div class="wire-scale"><span class="wire-bar len-15 black"></span><span class="wire-scale-label">Black</span></div>
+  <div class="wire-scale"><span class="wire-bar len-15 orange"></span><span class="wire-scale-label">Orange</span></div>
+  <div class="wire-scale"><span class="wire-bar len-15 blue"></span><span class="wire-scale-label">Blue</span></div>
+</div></td></tr>
+<tr class="shop-subgroup"><td colspan="2">30&nbsp;cm · M–M · column (stack connectors)</td></tr>
+<tr><td colspan="2" class="wire-col"><div class="wire-list">
+  <div class="wire-scale"><span class="wire-bar len-30 black"></span><span class="wire-scale-label">Black</span></div>
+  <div class="wire-scale"><span class="wire-bar len-30 orange"></span><span class="wire-scale-label">Orange</span></div>
+  <div class="wire-scale"><span class="wire-bar len-30 blue"></span><span class="wire-scale-label">Blue</span></div>
+</div></td></tr>
+
+<tr class="shop-group"><td colspan="2">Rain pad → MH-RD</td></tr>
+<tr class="shop-subgroup"><td colspan="2">10&nbsp;cm · F–F · component (rain pad)</td></tr>
+<tr><td colspan="2" class="wire-col"><div class="wire-list">
+  <div class="wire-scale"><span class="wire-bar len-10 blue"></span><span class="wire-scale-label">Blue</span></div>
+  <div class="wire-scale"><span class="wire-bar len-10 blue"></span><span class="wire-scale-label">Blue</span></div>
+</div></td></tr>
 </table>
 
 <h3 style="font-size:0.8rem;text-transform:uppercase;letter-spacing:.06em;color:var(--purple);margin:20px 0 8px;">Shopping list</h3>
 <table class="cables">
-<tr class="shop-group"><td colspan="2">10&nbsp;cm · F–M · sensor tails (BME280, BH1750, PMS5003)</td></tr>
-<tr><th>Qty</th><th>Colour</th></tr>
-<tr><td>3</td><td><span class="wire-chip black wire-inline">Black</span></td></tr>
-<tr><td>2</td><td><span class="wire-chip orange wire-inline">Orange</span></td></tr>
-<tr><td>2</td><td><span class="wire-chip purple wire-inline">Purple</span></td></tr>
-<tr><td>2</td><td><span class="wire-chip white wire-inline">White</span></td></tr>
-<tr><td>1</td><td><span class="wire-chip green wire-inline">Green</span></td></tr>
-<tr><td>1</td><td><span class="wire-chip grey wire-inline">Grey</span></td></tr>
-<tr><td>1</td><td><span class="wire-chip red wire-inline">Red</span></td></tr>
-<tr class="shop-group"><td colspan="2">10&nbsp;cm · F–F · rain pad → MH-RD</td></tr>
-<tr><th>Qty</th><th>Colour</th></tr>
-<tr><td>2</td><td><span class="wire-chip blue wire-inline">Blue</span></td></tr>
-<tr class="shop-group"><td colspan="2">15&nbsp;cm · F–M · perfboard stubs (all modules + ESP32)</td></tr>
-<tr><th>Qty</th><th>Colour</th></tr>
-<tr><td>5</td><td><span class="wire-chip black wire-inline">Black</span></td></tr>
-<tr><td>4</td><td><span class="wire-chip orange wire-inline">Orange</span></td></tr>
-<tr><td>3</td><td><span class="wire-chip purple wire-inline">Purple</span></td></tr>
-<tr><td>3</td><td><span class="wire-chip white wire-inline">White</span></td></tr>
-<tr><td>2</td><td><span class="wire-chip green wire-inline">Green</span></td></tr>
-<tr><td>2</td><td><span class="wire-chip grey wire-inline">Grey</span></td></tr>
-<tr><td>2</td><td><span class="wire-chip red wire-inline">Red</span></td></tr>
-<tr><td>2</td><td><span class="wire-chip blue wire-inline">Blue</span></td></tr>
-<tr class="shop-group"><td colspan="2">30&nbsp;cm · M–M · column (all remote modules)</td></tr>
-<tr><th>Qty</th><th>Colour</th></tr>
-<tr><td>4</td><td><span class="wire-chip black wire-inline">Black</span></td></tr>
-<tr><td>3</td><td><span class="wire-chip orange wire-inline">Orange</span></td></tr>
-<tr><td>2</td><td><span class="wire-chip purple wire-inline">Purple</span></td></tr>
-<tr><td>2</td><td><span class="wire-chip white wire-inline">White</span></td></tr>
-<tr><td>1</td><td><span class="wire-chip green wire-inline">Green</span></td></tr>
-<tr><td>1</td><td><span class="wire-chip grey wire-inline">Grey</span></td></tr>
-<tr><td>1</td><td><span class="wire-chip red wire-inline">Red</span></td></tr>
-<tr><td>1</td><td><span class="wire-chip blue wire-inline">Blue</span></td></tr>
+<tr class="shop-group"><td colspan="2">ESP32</td></tr>
+<tr class="shop-subgroup"><td colspan="2">15&nbsp;cm · F–M · perfboard stubs</td></tr>
+<tr><th class="qty-col">Qty</th><th>Wire</th></tr>
+<tr><td class="qty-col">1</td><td class="wire-col"><div class="wire-scale"><span class="wire-bar len-15 black"></span><span class="wire-scale-label">Black</span></div></td></tr>
+<tr><td class="qty-col">1</td><td class="wire-col"><div class="wire-scale"><span class="wire-bar len-15 orange"></span><span class="wire-scale-label">Orange</span></div></td></tr>
+<tr><td class="qty-col">1</td><td class="wire-col"><div class="wire-scale"><span class="wire-bar len-15 purple"></span><span class="wire-scale-label">Purple</span></div></td></tr>
+<tr><td class="qty-col">1</td><td class="wire-col"><div class="wire-scale"><span class="wire-bar len-15 white"></span><span class="wire-scale-label">White</span></div></td></tr>
+<tr><td class="qty-col">1</td><td class="wire-col"><div class="wire-scale"><span class="wire-bar len-15 green"></span><span class="wire-scale-label">Green</span></div></td></tr>
+<tr><td class="qty-col">1</td><td class="wire-col"><div class="wire-scale"><span class="wire-bar len-15 grey"></span><span class="wire-scale-label">Grey</span></div></td></tr>
+<tr><td class="qty-col">1</td><td class="wire-col"><div class="wire-scale"><span class="wire-bar len-15 red"></span><span class="wire-scale-label">Red</span></div></td></tr>
+<tr><td class="qty-col">1</td><td class="wire-col"><div class="wire-scale"><span class="wire-bar len-15 blue"></span><span class="wire-scale-label">Blue</span></div></td></tr>
+
+<tr class="shop-group"><td colspan="2">BME280</td></tr>
+<tr class="shop-subgroup"><td colspan="2">15&nbsp;cm · F–M · perfboard stubs</td></tr>
+<tr><th class="qty-col">Qty</th><th>Wire</th></tr>
+<tr><td class="qty-col">1</td><td class="wire-col"><div class="wire-scale"><span class="wire-bar len-15 black"></span><span class="wire-scale-label">Black</span></div></td></tr>
+<tr><td class="qty-col">1</td><td class="wire-col"><div class="wire-scale"><span class="wire-bar len-15 orange"></span><span class="wire-scale-label">Orange</span></div></td></tr>
+<tr><td class="qty-col">1</td><td class="wire-col"><div class="wire-scale"><span class="wire-bar len-15 purple"></span><span class="wire-scale-label">Purple</span></div></td></tr>
+<tr><td class="qty-col">1</td><td class="wire-col"><div class="wire-scale"><span class="wire-bar len-15 white"></span><span class="wire-scale-label">White</span></div></td></tr>
+<tr class="shop-subgroup"><td colspan="2">30&nbsp;cm · M–M · column (stack connectors)</td></tr>
+<tr><td class="qty-col">1</td><td class="wire-col"><div class="wire-scale"><span class="wire-bar len-30 black"></span><span class="wire-scale-label">Black</span></div></td></tr>
+<tr><td class="qty-col">1</td><td class="wire-col"><div class="wire-scale"><span class="wire-bar len-30 orange"></span><span class="wire-scale-label">Orange</span></div></td></tr>
+<tr><td class="qty-col">1</td><td class="wire-col"><div class="wire-scale"><span class="wire-bar len-30 purple"></span><span class="wire-scale-label">Purple</span></div></td></tr>
+<tr><td class="qty-col">1</td><td class="wire-col"><div class="wire-scale"><span class="wire-bar len-30 white"></span><span class="wire-scale-label">White</span></div></td></tr>
+<tr class="shop-subgroup"><td colspan="2">10&nbsp;cm · F–M · sensor tails</td></tr>
+<tr><td class="qty-col">1</td><td class="wire-col"><div class="wire-scale"><span class="wire-bar len-10 black"></span><span class="wire-scale-label">Black</span></div></td></tr>
+<tr><td class="qty-col">1</td><td class="wire-col"><div class="wire-scale"><span class="wire-bar len-10 orange"></span><span class="wire-scale-label">Orange</span></div></td></tr>
+<tr><td class="qty-col">1</td><td class="wire-col"><div class="wire-scale"><span class="wire-bar len-10 purple"></span><span class="wire-scale-label">Purple</span></div></td></tr>
+<tr><td class="qty-col">1</td><td class="wire-col"><div class="wire-scale"><span class="wire-bar len-10 white"></span><span class="wire-scale-label">White</span></div></td></tr>
+
+<tr class="shop-group"><td colspan="2">BH1750</td></tr>
+<tr class="shop-subgroup"><td colspan="2">15&nbsp;cm · F–M · perfboard stubs</td></tr>
+<tr><th class="qty-col">Qty</th><th>Wire</th></tr>
+<tr><td class="qty-col">1</td><td class="wire-col"><div class="wire-scale"><span class="wire-bar len-15 black"></span><span class="wire-scale-label">Black</span></div></td></tr>
+<tr><td class="qty-col">1</td><td class="wire-col"><div class="wire-scale"><span class="wire-bar len-15 orange"></span><span class="wire-scale-label">Orange</span></div></td></tr>
+<tr><td class="qty-col">1</td><td class="wire-col"><div class="wire-scale"><span class="wire-bar len-15 purple"></span><span class="wire-scale-label">Purple</span></div></td></tr>
+<tr><td class="qty-col">1</td><td class="wire-col"><div class="wire-scale"><span class="wire-bar len-15 white"></span><span class="wire-scale-label">White</span></div></td></tr>
+<tr class="shop-subgroup"><td colspan="2">30&nbsp;cm · M–M · column (stack connectors)</td></tr>
+<tr><td class="qty-col">1</td><td class="wire-col"><div class="wire-scale"><span class="wire-bar len-30 black"></span><span class="wire-scale-label">Black</span></div></td></tr>
+<tr><td class="qty-col">1</td><td class="wire-col"><div class="wire-scale"><span class="wire-bar len-30 orange"></span><span class="wire-scale-label">Orange</span></div></td></tr>
+<tr><td class="qty-col">1</td><td class="wire-col"><div class="wire-scale"><span class="wire-bar len-30 purple"></span><span class="wire-scale-label">Purple</span></div></td></tr>
+<tr><td class="qty-col">1</td><td class="wire-col"><div class="wire-scale"><span class="wire-bar len-30 white"></span><span class="wire-scale-label">White</span></div></td></tr>
+<tr class="shop-subgroup"><td colspan="2">10&nbsp;cm · F–M · sensor tails</td></tr>
+<tr><td class="qty-col">1</td><td class="wire-col"><div class="wire-scale"><span class="wire-bar len-10 black"></span><span class="wire-scale-label">Black</span></div></td></tr>
+<tr><td class="qty-col">1</td><td class="wire-col"><div class="wire-scale"><span class="wire-bar len-10 orange"></span><span class="wire-scale-label">Orange</span></div></td></tr>
+<tr><td class="qty-col">1</td><td class="wire-col"><div class="wire-scale"><span class="wire-bar len-10 purple"></span><span class="wire-scale-label">Purple</span></div></td></tr>
+<tr><td class="qty-col">1</td><td class="wire-col"><div class="wire-scale"><span class="wire-bar len-10 white"></span><span class="wire-scale-label">White</span></div></td></tr>
+
+<tr class="shop-group"><td colspan="2">PMS5003</td></tr>
+<tr class="shop-subgroup"><td colspan="2">15&nbsp;cm · F–M · perfboard stubs</td></tr>
+<tr><th class="qty-col">Qty</th><th>Wire</th></tr>
+<tr><td class="qty-col">1</td><td class="wire-col"><div class="wire-scale"><span class="wire-bar len-15 black"></span><span class="wire-scale-label">Black</span></div></td></tr>
+<tr><td class="qty-col">1</td><td class="wire-col"><div class="wire-scale"><span class="wire-bar len-15 green"></span><span class="wire-scale-label">Green</span></div></td></tr>
+<tr><td class="qty-col">1</td><td class="wire-col"><div class="wire-scale"><span class="wire-bar len-15 grey"></span><span class="wire-scale-label">Grey</span></div></td></tr>
+<tr><td class="qty-col">1</td><td class="wire-col"><div class="wire-scale"><span class="wire-bar len-15 red"></span><span class="wire-scale-label">Red</span></div></td></tr>
+<tr class="shop-subgroup"><td colspan="2">30&nbsp;cm · M–M · column (stack connectors)</td></tr>
+<tr><td class="qty-col">1</td><td class="wire-col"><div class="wire-scale"><span class="wire-bar len-30 black"></span><span class="wire-scale-label">Black</span></div></td></tr>
+<tr><td class="qty-col">1</td><td class="wire-col"><div class="wire-scale"><span class="wire-bar len-30 green"></span><span class="wire-scale-label">Green</span></div></td></tr>
+<tr><td class="qty-col">1</td><td class="wire-col"><div class="wire-scale"><span class="wire-bar len-30 grey"></span><span class="wire-scale-label">Grey</span></div></td></tr>
+<tr><td class="qty-col">1</td><td class="wire-col"><div class="wire-scale"><span class="wire-bar len-30 red"></span><span class="wire-scale-label">Red</span></div></td></tr>
+<tr class="shop-subgroup"><td colspan="2">10&nbsp;cm · F–M · sensor tails</td></tr>
+<tr><td class="qty-col">1</td><td class="wire-col"><div class="wire-scale"><span class="wire-bar len-10 black"></span><span class="wire-scale-label">Black</span></div></td></tr>
+<tr><td class="qty-col">1</td><td class="wire-col"><div class="wire-scale"><span class="wire-bar len-10 green"></span><span class="wire-scale-label">Green</span></div></td></tr>
+<tr><td class="qty-col">1</td><td class="wire-col"><div class="wire-scale"><span class="wire-bar len-10 grey"></span><span class="wire-scale-label">Grey</span></div></td></tr>
+<tr><td class="qty-col">1</td><td class="wire-col"><div class="wire-scale"><span class="wire-bar len-10 red"></span><span class="wire-scale-label">Red</span></div></td></tr>
+
+<tr class="shop-group"><td colspan="2">MH-RD board</td></tr>
+<tr class="shop-subgroup"><td colspan="2">15&nbsp;cm · F–M · perfboard stubs</td></tr>
+<tr><th class="qty-col">Qty</th><th>Wire</th></tr>
+<tr><td class="qty-col">1</td><td class="wire-col"><div class="wire-scale"><span class="wire-bar len-15 black"></span><span class="wire-scale-label">Black</span></div></td></tr>
+<tr><td class="qty-col">1</td><td class="wire-col"><div class="wire-scale"><span class="wire-bar len-15 orange"></span><span class="wire-scale-label">Orange</span></div></td></tr>
+<tr><td class="qty-col">1</td><td class="wire-col"><div class="wire-scale"><span class="wire-bar len-15 blue"></span><span class="wire-scale-label">Blue</span></div></td></tr>
+<tr class="shop-subgroup"><td colspan="2">30&nbsp;cm · M–M · column (stack connectors)</td></tr>
+<tr><td class="qty-col">1</td><td class="wire-col"><div class="wire-scale"><span class="wire-bar len-30 black"></span><span class="wire-scale-label">Black</span></div></td></tr>
+<tr><td class="qty-col">1</td><td class="wire-col"><div class="wire-scale"><span class="wire-bar len-30 orange"></span><span class="wire-scale-label">Orange</span></div></td></tr>
+<tr><td class="qty-col">1</td><td class="wire-col"><div class="wire-scale"><span class="wire-bar len-30 blue"></span><span class="wire-scale-label">Blue</span></div></td></tr>
+
+<tr class="shop-group"><td colspan="2">Rain pad → MH-RD</td></tr>
+<tr class="shop-subgroup"><td colspan="2">10&nbsp;cm · F–F · component (rain pad)</td></tr>
+<tr><th class="qty-col">Qty</th><th>Wire</th></tr>
+<tr><td class="qty-col">2</td><td class="wire-col"><div class="wire-scale"><span class="wire-bar len-10 blue"></span><span class="wire-scale-label">Blue</span></div></td></tr>
+
 <tr><td colspan="2" style="font-weight:700;padding-top:10px"><b>52</b> wires total</td></tr>
 </table>
 </div>

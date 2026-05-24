@@ -691,8 +691,16 @@ void loop() {
     lastStaRetry = millis();
   }
 
-  static unsigned long lastSensor = 0, lastPost = 0, lastStatus = 0;
+  static unsigned long lastSensor = 0, lastPost = 0, lastStatus = 0, lastWifiLog = 0;
   unsigned long now = millis();
+
+  if (now - lastWifiLog > 10000) {
+    lastWifiLog = now;
+    Serial.printf("[wifi] AP SSID: %s  AP IP: %s  STA: %s\n",
+      web_dashboard::apSsid().c_str(),
+      web_dashboard::apIp().c_str(),
+      WiFi.status() == WL_CONNECTED ? WiFi.localIP().toString().c_str() : "disconnected");
+  }
 
   if (now - lastSensor > 2000) {
     #if ENABLE_PMS
@@ -1457,13 +1465,15 @@ static void applyConfigChanges(bool wifiChanged, bool relayChanged, bool keyChan
 }
 
 static String getDeviceId() {
-  // Mirror the AP SSID suffix exactly: last 3 bytes of the eFuse MAC, hex.
+  // Same 3-byte suffix as the AP SSID (WeatherStation-XXXXXX).
+  // getEfuseMac() packs mac[0..5] little-endian; mac[3..5] (unique device
+  // bytes) are at bit offsets 24, 32, 40. mac[0..2] is the shared OUI.
   uint64_t chipId = ESP.getEfuseMac();
   char buf[7];
   snprintf(buf, sizeof(buf), "%02X%02X%02X",
-           (unsigned)((chipId >> 16) & 0xFF),
-           (unsigned)((chipId >>  8) & 0xFF),
-           (unsigned)((chipId >>  0) & 0xFF));
+           (unsigned)((chipId >> 24) & 0xFF),
+           (unsigned)((chipId >> 32) & 0xFF),
+           (unsigned)((chipId >> 40) & 0xFF));
   return String(buf);
 }
 

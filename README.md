@@ -76,12 +76,24 @@ Use **industry-standard** colours for power rails, and **project theme** colours
 
 1. Install [PlatformIO](https://platformio.org/).
 2. *(Optional)* For brand-new boards you do not need to edit any secrets file — the firmware ships with sensible blank defaults and a per-device captive-portal dashboard handles everything. If you want pre-baked factory defaults (handy if you flash a lot of boards), copy `include/secrets.h.example` to e.g. `include/secrets_station_mvp1.h` and fill it in.
-3. Connect the board via USB and flash any MVP env:
+3. Connect the board via USB and flash. For a **brand-new or recycled board**, erase first so NVS starts clean:
    ```bash
-   pio run -e esp32dev_mvp1 --target upload
-   pio device monitor -e esp32dev_mvp1
+   # Erase + flash (new/recycled board — clears all NVS):
+   pio run -e esp32dev_mvp3 -t erase && pio run -e esp32dev_mvp3 -t upload
+
+   # Flash only (re-flash same board, keep NVS config):
+   pio run -e esp32dev_mvp3 -t upload
+
+   # Monitor serial output:
+   pio device monitor -e esp32dev_mvp3
    ```
-   All MVP envs (`esp32dev_mvp1` … `esp32dev_mvp5`) build the **same firmware**; only the first-boot defaults differ.
+   Replace `mvp3` with the correct env number. All MVP envs (`esp32dev_mvp1` … `esp32dev_mvp5`) build the **same firmware**; only the first-boot defaults differ (station name `N/5`, etc.). Track which board is which in [`docs/mvp-stations.md`](docs/mvp-stations.md).
+
+   **Do not use `esptool.py` directly** — it is not on PATH and its bundled copy has missing Python dependencies. Always use `pio run -t erase` / `pio run -t upload`.
+
+   Default Nostr relay on first boot: `wss://relay.relaying.earth`.
+
+   **Confirm the right board is connected** before flashing. After boot, serial prints `[wifi] AP SSID: WeatherStation-XXXXXX` every 10 s — verify `XXXXXX` matches the board's label in `docs/mvp-stations.md`.
 
 ## Configure from your phone (the dashboard)
 

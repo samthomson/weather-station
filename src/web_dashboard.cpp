@@ -20,14 +20,15 @@ namespace {
   String g_ap_ssid;
 
   String macSuffix() {
-    // efuse MAC is always populated (unlike WiFi.macAddress() which can read
-    // back zeros if the radio hasn't been brought up yet).
+    // getEfuseMac() packs mac[0..5] into a uint64 little-endian, so
+    // mac[3..5] (the unique device bytes) sit at bit offsets 24, 32, 40.
+    // mac[0..2] is the shared OUI prefix and must NOT be used here.
     uint64_t chipId = ESP.getEfuseMac();
     char buf[7];
     snprintf(buf, sizeof(buf), "%02X%02X%02X",
-             (unsigned)((chipId >> 16) & 0xFF),
-             (unsigned)((chipId >>  8) & 0xFF),
-             (unsigned)((chipId >>  0) & 0xFF));
+             (unsigned)((chipId >> 24) & 0xFF),
+             (unsigned)((chipId >> 32) & 0xFF),
+             (unsigned)((chipId >> 40) & 0xFF));
     return String(buf);
   }
 
@@ -157,6 +158,7 @@ button.savefail{background:var(--err);color:#fff}
 <label>Relay</label>
 <select id="nostr_relay_preset" onchange="if(this.value)document.getElementById('nostr_relay').value=this.value">
   <option value="">-- pick a preset --</option>
+  <option value="wss://relay.relaying.earth">wss://relay.relaying.earth</option>
   <option value="wss://wr.samt.st">wss://wr.samt.st</option>
   <option value="wss://relay.damus.io">wss://relay.damus.io</option>
   <option value="wss://nos.lol">wss://nos.lol</option>
