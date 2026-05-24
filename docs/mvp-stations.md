@@ -27,8 +27,8 @@ pio run -e esp32dev_mvp2 --target upload   # station 2
 | 1 | esp32dev_mvp1    | B865E4    | WeatherStation-B865E4  | e4:65:b8:1b:43:08  | 2026-05-24 | OLD firmware (wrong MAC suffix); will become 1B4308 after reflash |
 | 2 | esp32dev_mvp2    | B3A3A0    | WeatherStation-B3A3A0  | a0:a3:b3:2f:95:d8  | 2026-05-24 | OLD firmware (wrong MAC suffix); will become 2F95D8 after reflash |
 | 3 | esp32dev_mvp3    | 19D3B8    | WeatherStation-19D3B8  | e4:65:b8:19:d3:b8  | 2026-05-24 | Fixed firmware flashed                     |
-| 4 | esp32dev_mvp4    |           | WeatherStation-        |                    |            |                                            |
-| 5 | esp32dev_mvp5    |           | WeatherStation-        |                    |            |                                            |
+| 4 | esp32dev_mvp4    | 3141C4    | WeatherStation-3141C4  |                    | 2026-05-24 |                                            |
+| 5 | esp32dev_mvp5    | 0BF6BC    | WeatherStation-0BF6BC  |                    | 2026-05-24 |                                            |
 
 ---
 
