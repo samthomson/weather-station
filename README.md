@@ -192,3 +192,19 @@ Each tag: `[sensor_type, value, model]`
 - [ ] nip31 alt tag (for each event?) https://github.com/nostr-protocol/nips/pull/2163#issuecomment-3693704646
 - [ ] add `"observed_at": <unix timestamp in seconds>` for each 16158.
 - [ ] expand past weather to general environmental data (eg soil acidity, soil moisture, etc). think of a more inclusive name. maybe terrametry (telemetry, but earth scoped)
+
+## Air quality station
+
+A future variant focused on indoor air quality. Goal: factory-calibrated, plug-and-trust — no per-unit calibration or burn-in. All sensors below are I²C (shared GPIO21 SDA / GPIO22 SCL), so they wire in parallel on one ESP32. MQ sensors are deliberately excluded — they need per-unit calibration and only give relative values.
+
+- [ ] PMS5003 — PM1/2.5/10 in µg/m³ (already owned)
+- [ ] SCD41 — real CO₂ (NDIR) in ppm, plus temp + humidity
+- [ ] SGP41 — VOC + NOx index (relative; good for spotting change/spikes)
+- [ ] BME680 (optional) — IAQ gas resistance + temp/humidity/pressure
+
+### Possible future sensors
+
+- [ ] Winsen ZE07-CO / ZE15-CO — carbon monoxide (electrochemical, calibrated; real safety metric). UART, not I²C.
+- [ ] Sensirion SFA30 — formaldehyde (HCHO); off-gasses from furniture/flooring. I²C/UART.
+- [ ] Radon detector — serious long-term indoor risk, but needs a dedicated (pricier) unit; not an I²C add-on.
+- [ ] Sound level (mic) — environmental noise; beyond air quality but useful for an indoor environment station.
