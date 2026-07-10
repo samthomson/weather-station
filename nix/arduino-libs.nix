@@ -248,7 +248,10 @@ in
 
   # Always linked: unconditional includes in src/main.cpp, plus the sensor
   # libs kept compiled everywhere for parity with the pre-nix reference
-  # build (linker GCs unused objects).
+  # build (linker GCs unused objects). Single owner of the list: reaches
+  # main/CMakeLists.txt's REQUIRES (with the variant extras) via the
+  # WX_COMPONENTS env var set in nix/firmware.nix. Order mirrors the
+  # hand-written REQUIRES it replaced — keeps link order, minimizes drift.
   baseComponents = [
     "ArduinoJson"
     "WebSockets"
@@ -259,8 +262,8 @@ in
     "Adafruit_BME280"
     "Adafruit_BMP280"
     "BH1750"
-    "micro_ecc"
     "DHT"
+    "micro_ecc"
   ];
 
   # Variant flag -> extra component names (not part of the reference build).

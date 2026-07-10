@@ -31,7 +31,7 @@ Wall-powered reference build for new prototypes: **ESP32**, particulates, temp/h
 
 Hookup wire or Dupont jumpers between the dev board and breakouts are assumed by your enclosure / assembly.
 
-**MVP firmware:** the default build (`include/factory_defaults.h`) already enables `ENABLE_BME280`, `ENABLE_BH1750`, `ENABLE_RAIN`, and `ENABLE_PMS` with `PMS_MODEL "PMS5003"` — no configuration needed.
+**MVP firmware:** the default build flags are defined by the `mvp` variant in `nix/variants.nix` — `ENABLE_BME280`, `ENABLE_BH1750`, `ENABLE_RAIN`, and `ENABLE_PMS` with `PMS_MODEL "PMS5003"` — no configuration needed.
 
 **MVP ESP32 wiring:** PMS5003 serial RX→**GPIO16**, TX→**GPIO17**. BME280 and BH1750 share **I2C** (**GPIO21**=SDA, **GPIO22**=SCL). Rain sensor analog→**GPIO34**.
 
@@ -162,7 +162,7 @@ Each tag: `[sensor_type, value, model]`
 ├── src/web_dashboard.cpp          # Captive-portal dashboard
 ├── include/config_store.h
 ├── include/web_dashboard.h
-├── include/factory_defaults.h     # First-boot NVS seed + compile-time sensor set
+├── include/factory_defaults.h     # First-boot NVS seed (sensor set: nix/variants.nix)
 ├── main/                          # ESP-IDF app entry (CMake component)
 ├── docs/refactoring-roadmap.md    # Decision log + future refactoring plan (nix, pure ESP-IDF)
 ├── docs/nixify-plan.md            # Nixification work packages (WP1–WP7, tests, QEMU)

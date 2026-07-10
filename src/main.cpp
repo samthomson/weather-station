@@ -1,7 +1,7 @@
 #include <Arduino.h>
 #include <math.h>
 
-// Factory defaults FIRST (defines the compile-time sensor feature flags)
+// Factory defaults FIRST (first-boot NVS seed only; ENABLE_* flags come from the build via -D defines, see nix/variants.nix)
 #include "factory_defaults.h"
 
 #include <WiFi.h>

@@ -8,20 +8,31 @@
 # exposed through a thin exec wrapper so its python propagation cannot
 # land on PYTHONPATH and shadow the IDF env's pyparsing 2.3.1 (breaks
 # ldgen — WP1 gotcha).
-{ pkgs, lib, firmwarePackages }:
+{ pkgs, lib, firmwarePackages, variants }:
 
 let
   esptool = "${pkgs.esptool}/bin/esptool";
   picocom = "${pkgs.picocom}/bin/picocom";
 
-  variantNames = map (lib.removePrefix "firmware-") (builtins.attrNames firmwarePackages);
+  variantNames = builtins.attrNames variants;
 
-  # Offsets fixed by the IDF 4.4 ESP32 image layout; identical to
-  # flash-manifest.json inside every firmware package.
-  offsetLine = "0x1000 bootloader.bin   0x8000 partition-table.bin   0xe000 ota_data_initial.bin   0x10000 firmware.bin";
+  defaultPort = "/dev/ttyUSB0";
+  baud = "115200";
 
-  requirePort = ''
-    PORT="''${1:-/dev/ttyUSB0}"
+  # Shared with flash-manifest.json inside every firmware package
+  # (nix/firmware.nix imports the same list).
+  flashParts = import ./flash-layout.nix;
+  offsetLine = lib.concatMapStringsSep "   " (p: "${p.offset} ${p.file}") flashParts;
+
+  # The only place PORT is assigned: default, existence check, and a strict
+  # arg count so a stray flag (e.g. `--baud 921600`) fails loudly instead of
+  # being silently ignored.
+  resolvePort = ''
+    if [ "$#" -gt 1 ]; then
+      echo "error: expected at most one argument (the serial port), got $#: $*" >&2
+      exit 2
+    fi
+    PORT="''${1:-${defaultPort}}"
     if [ ! -e "$PORT" ]; then
       echo "error: serial port '$PORT' does not exist." >&2
       echo "hint: pass the port as the first argument, e.g. -- /dev/ttyUSB1" >&2
@@ -33,43 +44,44 @@ let
     let
       name = "flash-${lib.optionalString erase "erase-"}${variant}";
       fw = firmwarePackages."firmware-${variant}";
+      writeFlashArgs =
+        lib.concatMapStringsSep " " (p: "${p.offset} ${fw}/${p.file}") flashParts;
     in
-    pkgs.writeShellScriptBin name ''
-      set -euo pipefail
-      PORT="''${1:-/dev/ttyUSB0}"
-      echo "variant:  ${variant}"
-      echo "firmware: ${fw}"
-      echo "port:     $PORT @ 115200 baud"
-      echo "offsets:  ${offsetLine}"
-      ${requirePort}
-      ${lib.optionalString erase ''
-        echo "erasing entire flash (this wipes NVS, i.e. the station identity) ..."
-        ${esptool} --chip esp32 --port "$PORT" --baud 115200 erase-flash
-      ''}
-      exec ${esptool} --chip esp32 --port "$PORT" --baud 115200 write-flash \
-        0x1000 ${fw}/bootloader.bin \
-        0x8000 ${fw}/partition-table.bin \
-        0xe000 ${fw}/ota_data_initial.bin \
-        0x10000 ${fw}/firmware.bin
+    pkgs.writeShellApplication {
+      inherit name;
+      text = ''
+        ${resolvePort}
+        echo "variant:  ${variant}"
+        echo "firmware: ${fw}"
+        echo "port:     $PORT @ ${baud} baud"
+        echo "offsets:  ${offsetLine}"
+        ${lib.optionalString erase ''
+          echo "erasing entire flash (this wipes NVS, i.e. the station identity) ..."
+          ${esptool} --chip esp32 --port "$PORT" --baud ${baud} erase-flash
+        ''}
+        exec ${esptool} --chip esp32 --port "$PORT" --baud ${baud} write-flash ${writeFlashArgs}
+      '';
+    };
+
+  monitor = pkgs.writeShellApplication {
+    name = "monitor";
+    text = ''
+      ${resolvePort}
+      echo "port: $PORT @ ${baud} baud"
+      echo "exit: Ctrl-A Ctrl-X"
+      exec ${picocom} --baud ${baud} "$PORT"
     '';
+  };
 
-  monitor = pkgs.writeShellScriptBin "monitor" ''
-    set -euo pipefail
-    PORT="''${1:-/dev/ttyUSB0}"
-    echo "port: $PORT @ 115200 baud"
-    echo "exit: Ctrl-A Ctrl-X"
-    ${requirePort}
-    exec ${picocom} --baud 115200 "$PORT"
-  '';
-
-  # One writeShellScriptBin per command, exposed twice: as `apps` for
-  # `nix run`, and as `packages` so they are buildable (`nix build
-  # .#flash-mvp`) and CI/checks catch eval or platform regressions.
+  # One writeShellApplication per command (strict mode + shellcheck enforced
+  # at build time), exposed twice: as `apps` for `nix run`, and as `packages`
+  # so they are buildable (`nix build .#flash-mvp`) and CI/checks catch eval
+  # or platform regressions.
   scripts = lib.foldl'
     (acc: variant: acc // {
       "flash-${variant}" = {
         drv = mkFlash { inherit variant; };
-        description = "Flash the ${variant} firmware over serial (esptool, 115200 baud)";
+        description = "Flash the ${variant} firmware over serial (esptool, ${baud} baud)";
       };
       "flash-erase-${variant}" = {
         drv = mkFlash { inherit variant; erase = true; };
@@ -79,7 +91,7 @@ let
     {
       monitor = {
         drv = monitor;
-        description = "Serial monitor at 115200 baud (picocom; exit: Ctrl-A Ctrl-X)";
+        description = "Serial monitor at ${baud} baud (picocom; exit: Ctrl-A Ctrl-X)";
       };
     }
     variantNames;
@@ -97,6 +109,8 @@ in
 
   # For the devshell: picocom directly (plain C program), esptool through a
   # thin exec wrapper so its python propagation stays out of PYTHONPATH.
+  # Stays writeShellScriptBin: a single exec line has nothing for strict
+  # mode or shellcheck to catch.
   devTools = [
     pkgs.picocom
     (pkgs.writeShellScriptBin "esptool" ''exec ${esptool} "$@"'')

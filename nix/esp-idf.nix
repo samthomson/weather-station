@@ -35,8 +35,7 @@ let
   src = fetchFromGitHub {
     owner = "espressif";
     repo = "esp-idf";
-    rev = rev;
-    sha256 = sha256;
+    inherit rev sha256;
     fetchSubmodules = true;
   };
 
@@ -63,7 +62,7 @@ let
   cryptography348 = (python39.pkgs.cryptography.override { packaging = packaging209; })
     .overridePythonAttrs (old: { doCheck = false; catchConflicts = false; });
 
-  kconfiglib1371 = python39.pkgs.kconfiglib.overridePythonAttrs (old: rec {
+  kconfiglib1371 = python39.pkgs.kconfiglib.overridePythonAttrs (_: rec {
     version = "13.7.1";
     src = python39.pkgs.fetchPypi {
       pname = "kconfiglib";
@@ -110,7 +109,7 @@ let
     construct>=2.10.54
   '';
 in
-stdenv.mkDerivation rec {
+stdenv.mkDerivation {
   pname = "esp-idf";
   version = rev;
 

@@ -8,6 +8,7 @@
 # packaging -> pyparsing 2.4.7 onto PYTHONPATH, which breaks IDF 4.4's ldgen
 # (needs pyparsing < 2.4). IDF uses its bundled esptool.
 { pkgs
+, hostTools         # host build tools shared with the devShell (flake.nix idfTools)
 , espIdf            # esp-idf 4.4.7 derivation (nix/esp-idf.nix)
 , xtensaToolchain   # xtensa gcc 8.4.0 (nix/xtensa-toolchain.nix)
 , arduinoEsp32Src   # arduino-esp32 2.0.17 flake input (becomes components/arduino)
@@ -24,6 +25,7 @@ let
 
   # Every ENABLE_* flag the sources test with `#if` must be defined 0 or 1;
   # PMS_MODEL (a quoted string) only exists when a PMS model is selected.
+  # The assert below `in` keeps this list and nix/variants.nix in lockstep.
   variantDefines = [
     "ENABLE_DHT=${onOff flags.dht}"
     "ENABLE_BME280=${onOff flags.bme280}"
@@ -52,7 +54,10 @@ let
       selectedComponents);
 
   definesArg = lib.concatStringsSep ";" variantDefines;
-  extraComponentsArg = lib.concatStringsSep ";" extraComponents;
+  componentsArg = lib.concatStringsSep ";" selectedComponents;
+
+  # Flash offsets: single source shared with nix/apps.nix.
+  flashParts = import ./flash-layout.nix;
 
   flashManifest = pkgs.writeText "flash-manifest-${variantName}.json"
     (builtins.toJSON {
@@ -61,12 +66,7 @@ let
       flash_mode = "dio";
       flash_freq = "40m";
       flash_size = "4MB";
-      parts = [
-        { offset = "0x1000"; file = "bootloader.bin"; }
-        { offset = "0x8000"; file = "partition-table.bin"; }
-        { offset = "0xe000"; file = "ota_data_initial.bin"; }
-        { offset = "0x10000"; file = "firmware.bin"; }
-      ];
+      parts = flashParts;
     });
 
   # Only the files the IDF build consumes; docs/STLs/nix changes don't
@@ -86,22 +86,18 @@ let
       ];
   };
 in
+# Every flag nix/variants.nix declares must be consumed by variantDefines
+# above — an unconsumed flag would silently ship firmware where
+# `#if ENABLE_NEW` tests an undefined macro. attrNames is sorted.
+assert lib.attrNames flags ==
+  [ "bh1750" "bme280" "bmp280" "dht" "mq" "oled" "pms" "rain" "sds011" "sps30" ];
 pkgs.stdenv.mkDerivation {
   pname = "weather-station-firmware-${variantName}";
   version = "2.0.17-idf4.4.7";
 
   src = projectSrc;
 
-  nativeBuildInputs = (with pkgs; [
-    git
-    cmake
-    ninja
-    flex
-    bison
-    gperf
-    pkgconfig
-    ncurses5
-  ]) ++ [ espIdf xtensaToolchain ];
+  nativeBuildInputs = hostTools ++ [ espIdf xtensaToolchain ];
 
   buildPhase = ''
     # idf.py wants a writable HOME; no network in the sandbox, so the
@@ -109,10 +105,11 @@ pkgs.stdenv.mkDerivation {
     # IDF_PATH; it fails gracefully and reads the version from source.
     export HOME=$TMPDIR
     export IDF_COMPONENT_MANAGER=0
-    # Read by main/CMakeLists.txt. Env var, not a -D cache entry: IDF 4.4
-    # collects REQUIRES in a separate script-mode cmake process that sees
-    # the environment but not the cache.
-    export WX_EXTRA_COMPONENTS='${extraComponentsArg}'
+    # Read by main/CMakeLists.txt: the full Arduino component list (base +
+    # variant extras, owned by nix/arduino-libs.nix). Env var, not a -D
+    # cache entry: IDF 4.4 collects REQUIRES in a separate script-mode
+    # cmake process that sees the environment but not the cache.
+    export WX_COMPONENTS='${componentsArg}'
 
     # arduino-esp32 registers itself as the `arduino` component when placed
     # at components/arduino. Copy (not symlink): the store is read-only and

@@ -11,7 +11,7 @@
 , lib
 , fetchurl
 , makeWrapper
-, buildFHSUserEnv ? null
+, buildFHSUserEnv
 }:
 
 let
@@ -32,7 +32,7 @@ let
     runScript = "";
   };
 in
-stdenv.mkDerivation rec {
+stdenv.mkDerivation {
   pname = "esp32-toolchain";
   inherit version;
 
@@ -41,15 +41,19 @@ stdenv.mkDerivation rec {
     inherit (binDist) hash;
   };
 
-  buildInputs = lib.optionals stdenv.isLinux [ makeWrapper ];
+  nativeBuildInputs = lib.optionals stdenv.isLinux [ makeWrapper ];
 
-  phases = [ "unpackPhase" "installPhase" ];
+  dontConfigure = true;
+  dontBuild = true;
+  # Prebuilt vendor binaries: never strip/patch/codesign them. The old
+  # `phases = [ unpackPhase installPhase ]` skipped fixup implicitly;
+  # keep that behavior explicit (darwin fixup would even try codesigning).
+  dontFixup = true;
 
   installPhase = ''
     cp -r . $out
   '' + lib.optionalString stdenv.isLinux ''
-    for FILE in $(ls $out/bin); do
-      FILE_PATH="$out/bin/$FILE"
+    for FILE_PATH in "$out"/bin/*; do
       if [[ -x $FILE_PATH ]]; then
         mv $FILE_PATH $FILE_PATH-unwrapped
         makeWrapper ${fhsEnv}/bin/esp32-toolchain-env $FILE_PATH --add-flags "$FILE_PATH-unwrapped"

@@ -56,19 +56,32 @@
 
           # arduino-esp32 2.0.17 officially pairs with IDF v4.4.7; IDF v4.4.7
           # requires crosstool-NG esp-2021r2-patch5 (still gcc 8.4.0).
-          esp-idf-447 = idfPkgs.callPackage ./nix/esp-idf.nix { };
-          xtensa-toolchain-patch5 = idfPkgs.callPackage ./nix/xtensa-toolchain.nix { };
+          espIdf = idfPkgs.callPackage ./nix/esp-idf.nix { };
+          xtensaToolchain = idfPkgs.callPackage ./nix/xtensa-toolchain.nix { };
+
+          # IDF-era host build tools, single source: consumed verbatim by
+          # both the firmware drv (hostTools) and the devShell — they MUST
+          # match (modern cmake >= 4 rejects IDF 4.4's cmake files).
+          idfTools = with idfPkgs; [
+            git
+            cmake
+            ninja
+            flex
+            bison
+            gperf
+            pkgconfig
+            ncurses5
+          ];
 
           arduinoLibs = import ./nix/arduino-libs.nix { pkgs = idfPkgs; srcs = inputs; };
 
           firmwarePackages = lib.mapAttrs'
             (name: flags: lib.nameValuePair "firmware-${name}"
               (import ./nix/firmware.nix {
-                inherit flags arduinoLibs;
+                inherit flags arduinoLibs espIdf xtensaToolchain;
                 pkgs = idfPkgs;
+                hostTools = idfTools;
                 variantName = name;
-                espIdf = esp-idf-447;
-                xtensaToolchain = xtensa-toolchain-patch5;
                 arduinoEsp32Src = arduino-esp32;
                 projectRoot = self;
               }))
@@ -76,33 +89,26 @@
 
           # Flash/monitor helpers (nix run .#flash-<variant>, .#monitor).
           # esptool/picocom stay out of the firmware drvs — apps only.
-          espApps = import ./nix/apps.nix { inherit pkgs lib firmwarePackages; };
+          espApps = import ./nix/apps.nix { inherit pkgs lib firmwarePackages variants; };
+
+          # Building all variants + flash/monitor scripts IS the check, so
+          # checks IS packages by construction.
+          allPackages = firmwarePackages // espApps.packages;
         in
         {
-          packages = firmwarePackages // espApps.packages;
+          packages = allPackages;
 
-          # Building all variants + flash/monitor scripts IS the check.
-          checks = firmwarePackages // espApps.packages;
+          checks = allPackages;
 
           apps = espApps.apps;
 
-          # IDF-era shell: build tools MUST match what the firmware drv uses
-          # (idfPkgs — modern cmake >= 4 rejects IDF 4.4's cmake files).
+          # IDF-era shell: shares idfTools with the firmware drv above.
           devShell = idfPkgs.mkShell {
             name = "weather-station-idf";
             # NB: no esptool package directly — it propagates packaging ->
             # newer pyparsing, which can shadow the IDF env's 2.3.1 and break
             # ldgen. The devTools exec wrapper avoids that.
-            buildInputs = (with idfPkgs; [
-              git
-              cmake
-              ninja
-              flex
-              bison
-              gperf
-              pkgconfig
-              ncurses5
-            ]) ++ [ esp-idf-447 xtensa-toolchain-patch5 ]
+            buildInputs = idfTools ++ [ espIdf xtensaToolchain ]
               # esptool 5.x (exec wrapper, keeps pyparsing off PYTHONPATH) + picocom
               # for driving flash/monitor manually; see nix/apps.nix.
               ++ espApps.devTools;

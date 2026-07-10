@@ -59,7 +59,7 @@ Physical board ↔ firmware env ↔ device_id mapping lives in `docs/mvp-station
 src/main.cpp              # sensor reads + Nostr publish
 src/config_store.cpp      # NVS-backed user config
 src/web_dashboard.cpp     # captive-portal dashboard (embedded HTML)
-include/factory_defaults.h # first-boot NVS seed + compile-time sensor set
+include/factory_defaults.h # first-boot NVS seed (sensor set: nix/variants.nix)
 main/                     # ESP-IDF app entry (CMake component)
 flake.nix                 # build env (firmware variants, flash/monitor apps, devShell)
 nix/                      # toolchain pin + firmware/variant derivations
