@@ -237,7 +237,7 @@
         "type": "indirect"
       }
     },
-    "nixpkgs-tools": {
+    "nixpkgs_2": {
       "locked": {
         "lastModified": 1783279667,
         "narHash": "sha256-/NAkDSsve+GNM0Bt6tleJdCGfsTlK89nPjkVOzZMo0s=",
@@ -267,11 +267,11 @@
         "dht-sensor": "dht-sensor",
         "esp-dev": "esp-dev",
         "micro-ecc": "micro-ecc",
-        "nixpkgs": [
+        "nixpkgs": "nixpkgs_2",
+        "nixpkgs-idf": [
           "esp-dev",
           "nixpkgs"
         ],
-        "nixpkgs-tools": "nixpkgs-tools",
         "sds011": "sds011",
         "sensirion-core": "sensirion-core",
         "sps30": "sps30",

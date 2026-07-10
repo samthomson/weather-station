@@ -1,22 +1,18 @@
 # Flash/monitor CLI: `nix run .#flash-<variant>`, `.#flash-erase-<variant>`,
 # `.#monitor` — see docs for usage.
 #
-# esptool (5.x) and picocom come from `toolsPkgs` (nixpkgs-unstable,
-# separate flake input): flashing only talks the serial protocol and has
-# zero coupling to the pinned IDF-era snapshot, so the tools track modern
-# releases. They must never enter the firmware derivations' inputs, and in
-# the devshell esptool is exposed through a thin exec wrapper so its
-# python propagation cannot land on PYTHONPATH and shadow the IDF env's
-# pyparsing 2.3.1 (breaks ldgen — WP1 gotcha).
-#
-# `pkgs` (the 2021-11 snapshot) still provides writeShellScriptBin for the
-# wrapper drvs; no writeShellApplication there, hence explicit
-# `set -euo pipefail`.
-{ pkgs, lib, toolsPkgs, firmwarePackages }:
+# `pkgs` is the flake's default (current) nixpkgs: esptool (5.x) and
+# picocom track modern releases — flashing only talks the serial protocol
+# and has zero coupling to the pinned IDF-era snapshot. They must never
+# enter the firmware derivations' inputs, and in the devshell esptool is
+# exposed through a thin exec wrapper so its python propagation cannot
+# land on PYTHONPATH and shadow the IDF env's pyparsing 2.3.1 (breaks
+# ldgen — WP1 gotcha).
+{ pkgs, lib, firmwarePackages }:
 
 let
-  esptool = "${toolsPkgs.esptool}/bin/esptool";
-  picocom = "${toolsPkgs.picocom}/bin/picocom";
+  esptool = "${pkgs.esptool}/bin/esptool";
+  picocom = "${pkgs.picocom}/bin/picocom";
 
   variantNames = map (lib.removePrefix "firmware-") (builtins.attrNames firmwarePackages);
 
@@ -102,7 +98,7 @@ in
   # For the devshell: picocom directly (plain C program), esptool through a
   # thin exec wrapper so its python propagation stays out of PYTHONPATH.
   devTools = [
-    toolsPkgs.picocom
+    pkgs.picocom
     (pkgs.writeShellScriptBin "esptool" ''exec ${esptool} "$@"'')
   ];
 }

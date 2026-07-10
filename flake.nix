@@ -2,17 +2,18 @@
   description = "ESP32 weather station firmware — ESP-IDF 4.4.7 + arduino-esp32 2.0.17 as IDF component";
 
   inputs = {
-    # Only consumed for its locked nixpkgs (2021-11): the IDF 4.4 era needs
-    # that snapshot (pkgconfig, ncurses5, python 3.9, cmake 3.21; modern
-    # cmake >= 4 breaks IDF 4.4's cmake_minimum_required(3.5)). The esp-idf
-    # and xtensa-toolchain derivations themselves are vendored in nix/.
-    esp-dev.url = "github:mirrexagon/nixpkgs-esp-dev/48413ee362b4d0709e1a0dff6aba7fd99060335e";
-    nixpkgs.follows = "esp-dev/nixpkgs";
+    # Default nixpkgs (current): host-side tooling (esptool 5.x, picocom)
+    # and everything else not welded to the IDF 4.4 era. Locked; moves on
+    # `nix flake update`.
+    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
 
-    # Current nixpkgs for host-side tooling only (esptool 5.x, picocom):
-    # the flash/monitor wrappers have zero coupling to the IDF-era
-    # snapshot. Locked like everything else; moves on `nix flake update`.
-    nixpkgs-tools.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    # 2021-11 nixpkgs snapshot for the firmware toolchain ONLY: IDF 4.4
+    # needs that era (pkgconfig, ncurses5, python 3.9, cmake 3.21; modern
+    # cmake >= 4 breaks IDF 4.4's cmake_minimum_required(3.5)). esp-dev is
+    # consumed just for this lock; the esp-idf and xtensa-toolchain
+    # derivations themselves are vendored in nix/.
+    esp-dev.url = "github:mirrexagon/nixpkgs-esp-dev/48413ee362b4d0709e1a0dff6aba7fd99060335e";
+    nixpkgs-idf.follows = "esp-dev/nixpkgs";
 
     # Arduino core, consumed as the IDF `arduino` component.
     arduino-esp32 = { url = "github:espressif/arduino-esp32/2.0.17"; flake = false; };
@@ -36,7 +37,7 @@
     sds011 = { url = "github:lewapek/sds-dust-sensors-arduino-library/1.5.1"; flake = false; };
   };
 
-  outputs = inputs@{ self, nixpkgs, arduino-esp32, ... }:
+  outputs = inputs@{ self, nixpkgs, nixpkgs-idf, arduino-esp32, ... }:
     let
       inherit (nixpkgs) lib;
 
@@ -48,20 +49,23 @@
 
       perSystem = system:
         let
+          # Default package set (current nixpkgs): wrappers, host tools.
           pkgs = import nixpkgs { inherit system; };
-          toolsPkgs = import inputs.nixpkgs-tools { inherit system; };
+          # IDF-era snapshot: ONLY the firmware toolchain below may use it.
+          idfPkgs = import nixpkgs-idf { inherit system; };
 
           # arduino-esp32 2.0.17 officially pairs with IDF v4.4.7; IDF v4.4.7
           # requires crosstool-NG esp-2021r2-patch5 (still gcc 8.4.0).
-          esp-idf-447 = pkgs.callPackage ./nix/esp-idf.nix { };
-          xtensa-toolchain-patch5 = pkgs.callPackage ./nix/xtensa-toolchain.nix { };
+          esp-idf-447 = idfPkgs.callPackage ./nix/esp-idf.nix { };
+          xtensa-toolchain-patch5 = idfPkgs.callPackage ./nix/xtensa-toolchain.nix { };
 
-          arduinoLibs = import ./nix/arduino-libs.nix { inherit pkgs; srcs = inputs; };
+          arduinoLibs = import ./nix/arduino-libs.nix { pkgs = idfPkgs; srcs = inputs; };
 
           firmwarePackages = lib.mapAttrs'
             (name: flags: lib.nameValuePair "firmware-${name}"
               (import ./nix/firmware.nix {
-                inherit pkgs flags arduinoLibs;
+                inherit flags arduinoLibs;
+                pkgs = idfPkgs;
                 variantName = name;
                 espIdf = esp-idf-447;
                 xtensaToolchain = xtensa-toolchain-patch5;
@@ -72,7 +76,7 @@
 
           # Flash/monitor helpers (nix run .#flash-<variant>, .#monitor).
           # esptool/picocom stay out of the firmware drvs — apps only.
-          espApps = import ./nix/apps.nix { inherit pkgs lib toolsPkgs firmwarePackages; };
+          espApps = import ./nix/apps.nix { inherit pkgs lib firmwarePackages; };
         in
         {
           packages = firmwarePackages // espApps.packages;
@@ -82,12 +86,14 @@
 
           apps = espApps.apps;
 
-          devShell = pkgs.mkShell {
+          # IDF-era shell: build tools MUST match what the firmware drv uses
+          # (idfPkgs — modern cmake >= 4 rejects IDF 4.4's cmake files).
+          devShell = idfPkgs.mkShell {
             name = "weather-station-idf";
             # NB: no esptool package directly — it propagates packaging ->
             # newer pyparsing, which can shadow the IDF env's 2.3.1 and break
             # ldgen. The devTools exec wrapper avoids that.
-            buildInputs = (with pkgs; [
+            buildInputs = (with idfPkgs; [
               git
               cmake
               ninja
