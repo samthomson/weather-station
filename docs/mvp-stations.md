@@ -2,12 +2,10 @@
 
 Track which physical ESP32 is which station. Fill in a row after each flash.
 
-**Flash command** (same firmware for every station; env only sets first-boot factory defaults):
+**Flash command** (same firmware for every station; identity is set from the dashboard):
 
 ```bash
-pio run -e esp32dev_mvp1 --target upload   # station 1
-pio run -e esp32dev_mvp2 --target upload   # station 2
-# … mvp3, mvp4, mvp5
+pio run -e esp32dev --target upload
 ```
 
 **After flash**, read from serial boot log or join the setup WiFi:

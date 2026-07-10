@@ -1,13 +1,12 @@
 # Nostr Weather Station
 
-ESP8266 weather station that posts sensor data to Nostr via WebSocket with BIP-340 Schnorr signatures.
+ESP32 weather station that posts sensor data to Nostr via WebSocket with BIP-340 Schnorr signatures.
 
 **Viewer app:** [github.com/samthomson/weather](https://github.com/samthomson/weather) — sample app for displaying weather data from Nostr events, deployed at [weather.shakespeare.wtf](https://weather.shakespeare.wtf/)
 
 ## Hardware
 
 **Supported Boards:**
-- NodeMCU v2 (ESP8266)
 - ESP32 Dev Board
 
 **Sensors:**
@@ -32,7 +31,7 @@ Wall-powered reference build for new prototypes: **ESP32**, particulates, temp/h
 
 Hookup wire or Dupont jumpers between the dev board and breakouts are assumed by your enclosure / assembly.
 
-**MVP firmware:** In `secrets_stationN.h`, enable `ENABLE_BME280`, `ENABLE_BH1750`, `ENABLE_RAIN`, and `ENABLE_PMS` with `PMS_MODEL "PMS5003"`; set `ENABLE_DHT`, `ENABLE_MQ`, and `ENABLE_OLED` to `false`. Use a PlatformIO ESP32 environment that pulls in the BME280 and BH1750 libraries (for example `esp32dev_station3`).
+**MVP firmware:** the default build (`include/factory_defaults.h`) already enables `ENABLE_BME280`, `ENABLE_BH1750`, `ENABLE_RAIN`, and `ENABLE_PMS` with `PMS_MODEL "PMS5003"` — no configuration needed.
 
 **MVP ESP32 wiring:** PMS5003 serial RX→**GPIO16**, TX→**GPIO17**. BME280 and BH1750 share **I2C** (**GPIO21**=SDA, **GPIO22**=SCL). Rain sensor analog→**GPIO34**.
 
@@ -58,36 +57,27 @@ Use **industry-standard** colours for power rails, and **project theme** colours
 
 ### Pin Connections
 
-**ESP8266 (NodeMCU v2):**
-- DHT11: D7
-- PMS5003: TX→D5, RX→D6
-- MQ sensor: A0
-- OLED: I2C (D1=SCL, D2=SDA)
-
 **ESP32:**
 - DHT11: GPIO4
 - PMS5003: TX→GPIO16 (RX2), RX→GPIO17 (TX2)
 - MQ sensor: GPIO36 (ADC1_CH0)
 - OLED: I2C (GPIO21=SDA, GPIO22=SCL)
 
-**Note:** ESP8266 has one analog pin. ESP32 has many - great for multiple analog sensors!
-
 ## Setup
 
 1. Install [PlatformIO](https://platformio.org/).
-2. *(Optional)* For brand-new boards you do not need to edit any secrets file — the firmware ships with sensible blank defaults and a per-device captive-portal dashboard handles everything. If you want pre-baked factory defaults (handy if you flash a lot of boards), copy `include/secrets.h.example` to e.g. `include/secrets_station_mvp1.h` and fill it in.
-3. Connect the board via USB and flash. For a **brand-new or recycled board**, erase first so NVS starts clean:
+2. Connect the board via USB and flash. For a **brand-new or recycled board**, erase first so NVS starts clean:
    ```bash
    # Erase + flash (new/recycled board — clears all NVS):
-   pio run -e esp32dev_mvp3 -t erase && pio run -e esp32dev_mvp3 -t upload
+   pio run -e esp32dev -t erase && pio run -e esp32dev -t upload
 
    # Flash only (re-flash same board, keep NVS config):
-   pio run -e esp32dev_mvp3 -t upload
+   pio run -e esp32dev -t upload
 
    # Monitor serial output:
-   pio device monitor -e esp32dev_mvp3
+   pio device monitor -e esp32dev
    ```
-   Replace `mvp3` with the correct env number. All MVP envs (`esp32dev_mvp1` … `esp32dev_mvp5`) build the **same firmware**; only the first-boot defaults differ (station name `N/5`, etc.). Track which board is which in [`docs/mvp-stations.md`](docs/mvp-stations.md).
+   Every station runs the **same firmware**; identity (name, WiFi, keys) lives in NVS and is set from the dashboard. Track which board is which in [`docs/mvp-stations.md`](docs/mvp-stations.md).
 
    **Do not use `esptool.py` directly** — it is not on PATH and its bundled copy has missing Python dependencies. Always use `pio run -t erase` / `pio run -t upload`.
 
@@ -168,8 +158,8 @@ Each tag: `[sensor_type, value, model]`
 ├── src/web_dashboard.cpp          # Captive-portal dashboard
 ├── include/config_store.h
 ├── include/web_dashboard.h
-├── include/secrets.h.example      # First-boot factory defaults template
-├── include/secrets_station_mvpN.h # Per-board factory defaults
+├── include/factory_defaults.h     # First-boot NVS seed + compile-time sensor set
+├── docs/refactoring-roadmap.md    # Future refactoring plan (nix, pure ESP-IDF)
 ├── platformio.ini
 └── README.md
 ```

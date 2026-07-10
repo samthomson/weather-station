@@ -6,16 +6,16 @@
 
 ```bash
 # Erase NVS + flash (new or recycled board):
-pio run -e esp32dev_mvpN -t erase && pio run -e esp32dev_mvpN -t upload
+pio run -e esp32dev -t erase && pio run -e esp32dev -t upload
 
 # Flash only (keep existing NVS config):
-pio run -e esp32dev_mvpN -t upload
+pio run -e esp32dev -t upload
 
 # Monitor serial:
-pio device monitor -e esp32dev_mvpN
+pio device monitor -e esp32dev
 ```
 
-Replace `N` with `1`–`5`.
+Every station runs the same firmware; identity lives in NVS (dashboard-configured).
 
 ## Confirm which board is connected before flashing
 
@@ -47,8 +47,8 @@ Physical board ↔ firmware env ↔ device_id mapping lives in `docs/mvp-station
 
 ## NVS / config
 
-- First boot seeds NVS from the compile-time secrets file (`include/secrets_station_mvpN.h`).
-- Subsequent boots load from NVS; the secrets file is ignored.
+- First boot seeds NVS from the committed defaults (`include/factory_defaults.h`) — blank identity, MVP sensor set.
+- Subsequent boots load from NVS; the defaults file is ignored.
 - Factory reset (from dashboard or `pio run -t erase`) wipes NVS and re-seeds on next boot.
 
 ## Project layout
@@ -57,8 +57,9 @@ Physical board ↔ firmware env ↔ device_id mapping lives in `docs/mvp-station
 src/main.cpp              # sensor reads + Nostr publish
 src/config_store.cpp      # NVS-backed user config
 src/web_dashboard.cpp     # captive-portal dashboard (embedded HTML)
-include/secrets_station_mvpN.h  # per-board first-boot defaults
-platformio.ini            # build envs
+include/factory_defaults.h # first-boot NVS seed + compile-time sensor set
+platformio.ini            # build env
 docs/mvp-stations.md      # physical board registry
+docs/refactoring-roadmap.md     # future refactoring plan (nix, pure ESP-IDF)
 docs/mvp-assembly-guide.html    # wiring / assembly guide
 ```

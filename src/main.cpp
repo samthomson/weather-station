@@ -1,23 +1,13 @@
 #include <Arduino.h>
 #include <math.h>
 
-// Include station-specific secrets FIRST (defines sensor flags)
-#ifndef SECRETS_FILE
-  #error "SECRETS_FILE must be defined! Use -DSECRETS_FILE=\"secrets_stationX.h\" in platformio.ini"
-#endif
-#include SECRETS_FILE
+// Factory defaults FIRST (defines the compile-time sensor feature flags)
+#include "factory_defaults.h"
 
-// Board-specific includes
-#ifdef ESP32
-  #include <WiFi.h>
-  #include <WiFiClientSecure.h>
-  #include "soc/soc.h"
-  #include "soc/rtc_cntl_reg.h"
-#else
-  #include <ESP8266WiFi.h>
-  #include <WiFiClientSecure.h>
-  #include <SoftwareSerial.h>
-#endif
+#include <WiFi.h>
+#include <WiFiClientSecure.h>
+#include "soc/soc.h"
+#include "soc/rtc_cntl_reg.h"
 
 #include <time.h>
 #include <ArduinoJson.h>
@@ -45,13 +35,8 @@
 #include "config_store.h"
 #include "web_dashboard.h"
 
-#ifdef ESP32
-  #include <mbedtls/sha256.h>
-  #include "uECC.h"
-#else
-  #include <bearssl/bearssl_hash.h>
-  #include "uECC.h"
-#endif
+#include <mbedtls/sha256.h>
+#include "uECC.h"
 
 // secp256k1 curve order n
 static const uint8_t SECP256K1_ORDER[32] = {
@@ -165,14 +150,9 @@ const SensorInfo sensors[] = {
 
 const int sensorCount = sizeof(sensors) / sizeof(sensors[0]);
 
-// PM sensor serial port - board-specific (PMS5003/PMS7003 and SDS011)
-#ifdef ESP32
-  HardwareSerial pmsSerial(2);  // ESP32 UART2
-  #define PMS_SERIAL pmsSerial
-#else
-  SoftwareSerial mySerial(D5, D6);  // ESP8266
-  #define PMS_SERIAL mySerial
-#endif
+// PM sensor serial port (PMS5003/PMS7003 and SDS011) - ESP32 UART2
+HardwareSerial pmsSerial(2);
+#define PMS_SERIAL pmsSerial
 
 unsigned int pm1 = 0, pm2_5 = 0, pm10 = 0;
 bool pmDataReceived = false;  // set on first valid PM frame; omit PM reading tags until then (NIP)
@@ -189,11 +169,7 @@ bool pmDataReceived = false;  // set on first valid PM frame; omit PM reading ta
 // DHT sensor pin - board-specific
 #if ENABLE_DHT
   #define DHTTYPE DHT11
-  #ifdef ESP32
-    #define DHT_PIN 4  // GPIO4 on ESP32
-  #else
-    #define DHT_PIN D7  // D7 on ESP8266
-  #endif
+  #define DHT_PIN 4  // GPIO4
   DHT dht(DHT_PIN, DHTTYPE);
 #endif
 
@@ -213,23 +189,15 @@ bool pmDataReceived = false;  // set on first valid PM frame; omit PM reading ta
   bool bh1750Available = false;
 #endif
 
-// Rain sensor pin - board-specific
-#ifdef ESP32
-  #define RAIN_PIN 34  // GPIO34 (ADC1_CH6) on ESP32
-#else
-  #define RAIN_PIN A0  // A0 on ESP8266 (shared with MQ if both enabled)
-#endif
+// Rain sensor pin
+#define RAIN_PIN 34  // GPIO34 (ADC1_CH6)
 
 float t = 0, h = 0, p = 0;  // temperature, humidity, pressure
 float lux = NAN;            // BH1750 lux; NAN until first valid read
-unsigned int rainValue = 0; // rain sensor (0-4095 on ESP32, 0-1023 on ESP8266)
+unsigned int rainValue = 0; // rain sensor (0-4095)
 
-// MQ sensor analog pin - board-specific
-#ifdef ESP32
-  #define MQ_PIN 36  // GPIO36 (ADC1_CH0) on ESP32
-#else
-  #define MQ_PIN A0  // A0 on ESP8266
-#endif
+// MQ sensor analog pin
+#define MQ_PIN 36  // GPIO36 (ADC1_CH0)
 unsigned int airQuality = 0;
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
@@ -513,13 +481,7 @@ void setup() {
   // Initialize PM sensor serial port (if compiled in and user enabled it)
   #if ENABLE_PMS
     if (cfg.en_pms) {
-      #ifdef ESP32
-        PMS_SERIAL.begin(9600, SERIAL_8N1, 16, 17);
-        Serial.println("ESP32: Using Hardware Serial (UART2)");
-      #else
-        PMS_SERIAL.begin(9600);
-        Serial.println("ESP8266: Using Software Serial");
-      #endif
+      PMS_SERIAL.begin(9600, SERIAL_8N1, 16, 17);  // UART2, RX=GPIO16, TX=GPIO17
       Serial.println("PMS sensor enabled");
     } else {
       Serial.println("PMS sensor disabled (runtime)");
@@ -538,11 +500,7 @@ void setup() {
   
   // Initialize I2C bus for any I2C sensors or OLED
   #if ENABLE_BME280 || ENABLE_BH1750 || ENABLE_SPS30 || ENABLE_OLED
-    #ifdef ESP32
-      Wire.begin(21, 22);  // Explicit SDA/SCL pins on ESP32
-    #else
-      Wire.begin();
-    #endif
+    Wire.begin(21, 22);  // SDA=21, SCL=22
     delay(100);  // Give I2C bus time to stabilize
   #endif
 
@@ -558,11 +516,7 @@ void setup() {
 
   // Initialize SDS011 (UART) - same pins as PMS on ESP32
   #if ENABLE_SDS011
-    #ifdef ESP32
-      PMS_SERIAL.begin(9600, SERIAL_8N1, 16, 17);  // RX=GPIO16, TX=GPIO17
-    #else
-      PMS_SERIAL.begin(9600);
-    #endif
+    PMS_SERIAL.begin(9600, SERIAL_8N1, 16, 17);  // RX=GPIO16, TX=GPIO17
     sds011.begin();
     sds011.setActiveReportingMode();
     Serial.println("SDS011 enabled (UART)");
@@ -640,11 +594,9 @@ void setup() {
   Serial.println("About to connect WiFi...");
   Serial.flush();
 
-  #ifdef ESP32
-    // Disable brownout detector (overly sensitive on some ESP32 boards)
-    WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
-    Serial.println("Brownout detector disabled");
-  #endif
+  // Disable brownout detector (overly sensitive on some ESP32 boards)
+  WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
+  Serial.println("Brownout detector disabled");
 
   delay(500);
   connectWiFi();
@@ -1021,39 +973,23 @@ void hexToBytes(const char* hex, uint8_t* bytes, int len) {
 }
 
 void sha256Raw(const uint8_t* data, size_t len, uint8_t* out) {
-  #ifdef ESP32
-    mbedtls_sha256_context ctx;
-    mbedtls_sha256_init(&ctx);
-    mbedtls_sha256_starts(&ctx, 0);  // 0 = SHA256 (not SHA224)
-    mbedtls_sha256_update(&ctx, data, len);
-    mbedtls_sha256_finish(&ctx, out);
-    mbedtls_sha256_free(&ctx);
-  #else
-    br_sha256_context ctx;
-    br_sha256_init(&ctx);
-    br_sha256_update(&ctx, data, len);
-    br_sha256_out(&ctx, out);
-  #endif
+  mbedtls_sha256_context ctx;
+  mbedtls_sha256_init(&ctx);
+  mbedtls_sha256_starts(&ctx, 0);  // 0 = SHA256 (not SHA224)
+  mbedtls_sha256_update(&ctx, data, len);
+  mbedtls_sha256_finish(&ctx, out);
+  mbedtls_sha256_free(&ctx);
 }
 
 void taggedHash(const uint8_t* tag, const uint8_t* data, size_t len, uint8_t* out) {
-  #ifdef ESP32
-    mbedtls_sha256_context ctx;
-    mbedtls_sha256_init(&ctx);
-    mbedtls_sha256_starts(&ctx, 0);
-    mbedtls_sha256_update(&ctx, tag, 32);
-    mbedtls_sha256_update(&ctx, tag, 32);
-    mbedtls_sha256_update(&ctx, data, len);
-    mbedtls_sha256_finish(&ctx, out);
-    mbedtls_sha256_free(&ctx);
-  #else
-    br_sha256_context ctx;
-    br_sha256_init(&ctx);
-    br_sha256_update(&ctx, tag, 32);
-    br_sha256_update(&ctx, tag, 32);
-    br_sha256_update(&ctx, data, len);
-    br_sha256_out(&ctx, out);
-  #endif
+  mbedtls_sha256_context ctx;
+  mbedtls_sha256_init(&ctx);
+  mbedtls_sha256_starts(&ctx, 0);
+  mbedtls_sha256_update(&ctx, tag, 32);
+  mbedtls_sha256_update(&ctx, tag, 32);
+  mbedtls_sha256_update(&ctx, data, len);
+  mbedtls_sha256_finish(&ctx, out);
+  mbedtls_sha256_free(&ctx);
 }
 
 void derivePubkey() {
@@ -1388,11 +1324,7 @@ static void initRuntimeSensors() {
   #if ENABLE_PMS
     static bool pmsStarted = false;
     if (cfg.en_pms && !pmsStarted) {
-      #ifdef ESP32
-        PMS_SERIAL.begin(9600, SERIAL_8N1, 16, 17);
-      #else
-        PMS_SERIAL.begin(9600);
-      #endif
+      PMS_SERIAL.begin(9600, SERIAL_8N1, 16, 17);
       pmsStarted = true;
       Serial.println("[sensors] PMS started");
     }

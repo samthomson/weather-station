@@ -7,6 +7,3 @@
 
 # macOS
 .DS_Store*
-
-include/secrets.h
-include/secrets_station*.h

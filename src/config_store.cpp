@@ -1,9 +1,7 @@
 #include "config_store.h"
 
 #include <Preferences.h>
-#ifdef ESP32
-  #include <esp_system.h>
-#endif
+#include <esp_system.h>
 
 namespace {
   Preferences prefs;
@@ -42,17 +40,13 @@ String generateNostrPrivKeyHex() {
   out.reserve(64);
   while (true) {
     uint8_t k[32];
-    #ifdef ESP32
-      for (int i = 0; i < 32; i += 4) {
-        uint32_t r = esp_random();
-        k[i]     = (uint8_t)(r);
-        k[i + 1] = (uint8_t)(r >> 8);
-        k[i + 2] = (uint8_t)(r >> 16);
-        k[i + 3] = (uint8_t)(r >> 24);
-      }
-    #else
-      for (int i = 0; i < 32; i++) k[i] = (uint8_t)random(256);
-    #endif
+    for (int i = 0; i < 32; i += 4) {
+      uint32_t r = esp_random();
+      k[i]     = (uint8_t)(r);
+      k[i + 1] = (uint8_t)(r >> 8);
+      k[i + 2] = (uint8_t)(r >> 16);
+      k[i + 3] = (uint8_t)(r >> 24);
+    }
     // Trivially below secp256k1 order: clamp top byte away from 0xFF.
     if (k[0] == 0xFF) k[0] = 0xFE;
     // Reject all-zero.
