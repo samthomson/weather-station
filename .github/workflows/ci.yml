@@ -1,0 +1,22 @@
+# CI: `nix flake check` builds the three ESP32 firmware images
+# (firmware-mvp, firmware-airquality-sps30, firmware-airquality-sds011)
+# via ESP-IDF. The first uncached run downloads the pinned toolchain
+# (several GBs) and can take 30+ minutes; magic-nix-cache keeps
+# subsequent runs fast.
+name: ci
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+
+jobs:
+  flake-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@v14
+      - uses: DeterminateSystems/magic-nix-cache-action@v8
+      - run: nix flake check -L

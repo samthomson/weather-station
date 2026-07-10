@@ -30,7 +30,7 @@ current shape exists and what the intended end state is.
   headers would leak into the world-readable `/nix/store` once builds are
   pure, and the dashboard already covers configuration.
 
-## Step 1 — Nixify the build (in progress)
+## Step 1 — Nixify the build (done 2026-07-10; hardware parity check pending)
 
 Replace PlatformIO with **ESP-IDF + arduino-esp32 as an IDF component**,
 pinned via nix flake inputs (`nixpkgs-esp-dev` for toolchain + IDF, each
@@ -43,6 +43,12 @@ Arduino library as a pinned `fetchFromGitHub` wrapped as an IDF component).
   derivation per hardware variant (MVP, air-quality, …).
 - Constraint inherited: arduino-esp32 version pins the IDF version
   (arduino-esp32 3.x ↔ IDF 5.x).
+
+Landed: flake with `firmware-{mvp,airquality-sps30,airquality-sds011}`
+packages (ESP-IDF 4.4.7, arduino-esp32 2.0.17, gcc 8.4.0), `nix run`
+flash/erase/monitor wrappers, CI running `nix flake check`. mvp image
+1,079,552 B (−0.57 % vs the 1,085,725 B reference). Phase-1 sign-off
+waits on the manual hardware parity check (`nix run .#flash-mvp`).
 
 ## Step 2 — Testability refactor
 

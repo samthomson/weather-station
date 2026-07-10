@@ -506,8 +506,9 @@ void setup() {
 
   // Initialize SPS30 (I2C) - SEL pin must be tied to GND for I2C mode
   #if ENABLE_SPS30
-    if (sps30.begin()) {
-      sps30.startMeasurement();
+    sps30.begin(Wire, SPS30_I2C_ADDR_69);
+    if (sps30.wakeUpSequence() == 0 &&
+        sps30.startMeasurement(SPS30_OUTPUT_FORMAT_OUTPUT_FORMAT_UINT16) == 0) {
       Serial.println("SPS30 enabled (I2C)");
     } else {
       Serial.println("SPS30 not found on I2C - check wiring (SEL to GND)");
@@ -825,10 +826,10 @@ void pmReadData() {
 
 #if ENABLE_SPS30
 void sps30ReadData() {
-  uint16_t mc1p0, mc2p5, mc10p0;
+  uint16_t mc1p0, mc2p5, mc4p0, mc10p0;
   uint16_t nc0p5, nc1p0, nc2p5, nc4p0, nc10p0;
   uint16_t typical;
-  int16_t err = sps30.readMeasurementData(mc1p0, mc2p5, mc10p0, nc0p5, nc1p0, nc2p5, nc4p0, nc10p0, typical);
+  int16_t err = sps30.readMeasurementValuesUint16(mc1p0, mc2p5, mc4p0, mc10p0, nc0p5, nc1p0, nc2p5, nc4p0, nc10p0, typical);
   if (err == 0) {
     pm1 = (unsigned int)mc1p0;
     pm2_5 = (unsigned int)mc2p5;

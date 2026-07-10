@@ -26,20 +26,4 @@
 #define STATION_POWER "mains"          // mains / solar / battery / solar_battery / usb
 #define STATION_CONNECTIVITY "wifi"    // wifi / cellular / ethernet / lora / satellite
 
-// Which sensor drivers are LINKED INTO this firmware build (the MVP sensor
-// set). The user toggles per-sensor at runtime from the dashboard; runtime
-// toggles only matter for sensors that are also compiled in here.
-#define ENABLE_DHT    false
-#define ENABLE_BME280 true
-#define ENABLE_BH1750 true
-#define ENABLE_RAIN   true
-#define ENABLE_PMS    true
-#define ENABLE_MQ     false
-#define ENABLE_OLED   false
-#define ENABLE_SPS30  false
-#define ENABLE_SDS011 false
-#define ENABLE_BMP280 false
-
-#define PMS_MODEL "PMS5003"  // PMS5003 or PMS7003
-
 #endif

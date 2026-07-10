@@ -21,7 +21,7 @@ Wall-powered reference build for new prototypes: **ESP32**, particulates, temp/h
 
 | Qty | Part |
 |-----|------|
-| 1 | ESP32 dev board (same class as `board = esp32dev` in PlatformIO) |
+| 1 | ESP32 dev board (generic ESP32-D0WD dev board, `esp32dev` class) |
 | 1 | BME280 breakout (I2C, 3.3 V) — temperature, humidity, barometric pressure |
 | 1 | PMS5003 — PM1.0, PM2.5, PM10 (include a cable if the module does not ship with one) |
 | 1 | BH1750 breakout (I2C) — ambient light (lux) |
@@ -65,21 +65,25 @@ Use **industry-standard** colours for power rails, and **project theme** colours
 
 ## Setup
 
-1. Install [PlatformIO](https://platformio.org/).
+1. Install [nix](https://nixos.org/download/) (with flakes enabled).
 2. Connect the board via USB and flash. For a **brand-new or recycled board**, erase first so NVS starts clean:
    ```bash
    # Erase + flash (new/recycled board — clears all NVS):
-   pio run -e esp32dev -t erase && pio run -e esp32dev -t upload
+   nix run .#flash-erase-mvp -- [PORT]
 
    # Flash only (re-flash same board, keep NVS config):
-   pio run -e esp32dev -t upload
+   nix run .#flash-mvp -- [PORT]
 
-   # Monitor serial output:
-   pio device monitor -e esp32dev
+   # Monitor serial output (picocom, 115200 baud; exit with Ctrl-A Ctrl-X):
+   nix run .#monitor -- [PORT]
    ```
+   `PORT` is optional and defaults to `/dev/ttyUSB0`.
+
+   To build the firmware without flashing: `nix build .#firmware-mvp` (other variants: `firmware-airquality-sps30`, `firmware-airquality-sds011`).
+
    Every station runs the **same firmware**; identity (name, WiFi, keys) lives in NVS and is set from the dashboard. Track which board is which in [`docs/mvp-stations.md`](docs/mvp-stations.md).
 
-   **Do not use `esptool.py` directly** — it is not on PATH and its bundled copy has missing Python dependencies. Always use `pio run -t erase` / `pio run -t upload`.
+   **Do not use `esptool.py` directly** — always flash via the `nix run` wrappers, which invoke a pinned esptool with the right flash offsets.
 
    Default Nostr relay on first boot: `wss://relay.relaying.earth`.
 
@@ -159,10 +163,14 @@ Each tag: `[sensor_type, value, model]`
 ├── include/config_store.h
 ├── include/web_dashboard.h
 ├── include/factory_defaults.h     # First-boot NVS seed + compile-time sensor set
+├── main/                          # ESP-IDF app entry (CMake component)
 ├── docs/refactoring-roadmap.md    # Decision log + future refactoring plan (nix, pure ESP-IDF)
 ├── docs/nixify-plan.md            # Nixification work packages (WP1–WP7, tests, QEMU)
-├── docs/nixify-handoff.md         # Handoff prompt to execute phase 1
-├── platformio.ini
+├── flake.nix                      # Nix build (firmware variants, flash/monitor apps, devShell)
+├── nix/                           # Toolchain pin + firmware/variant derivations
+├── CMakeLists.txt                 # ESP-IDF project root
+├── sdkconfig.defaults             # ESP-IDF configuration
+├── partitions.csv                 # Flash partition table
 └── README.md
 ```
 
