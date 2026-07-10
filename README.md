@@ -83,7 +83,7 @@ Use **industry-standard** colours for power rails, and **project theme** colours
 
    Every station runs the **same firmware**; identity (name, WiFi, keys) lives in NVS and is set from the dashboard. Track which board is which in [`docs/mvp-stations.md`](docs/mvp-stations.md).
 
-   **Do not use `esptool.py` directly** — always flash via the `nix run` wrappers, which invoke a pinned esptool with the right flash offsets.
+   **Do not use `esptool` directly** — always flash via the `nix run` wrappers, which invoke a pinned esptool with the right flash offsets.
 
    Default Nostr relay on first boot: `wss://relay.relaying.earth`.
 

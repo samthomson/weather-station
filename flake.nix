@@ -9,6 +9,11 @@
     esp-dev.url = "github:mirrexagon/nixpkgs-esp-dev/48413ee362b4d0709e1a0dff6aba7fd99060335e";
     nixpkgs.follows = "esp-dev/nixpkgs";
 
+    # Current nixpkgs for host-side tooling only (esptool 5.x, picocom):
+    # the flash/monitor wrappers have zero coupling to the IDF-era
+    # snapshot. Locked like everything else; moves on `nix flake update`.
+    nixpkgs-tools.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+
     # Arduino core, consumed as the IDF `arduino` component.
     arduino-esp32 = { url = "github:espressif/arduino-esp32/2.0.17"; flake = false; };
 
@@ -44,6 +49,7 @@
       perSystem = system:
         let
           pkgs = import nixpkgs { inherit system; };
+          toolsPkgs = import inputs.nixpkgs-tools { inherit system; };
 
           # arduino-esp32 2.0.17 officially pairs with IDF v4.4.7; IDF v4.4.7
           # requires crosstool-NG esp-2021r2-patch5 (still gcc 8.4.0).
@@ -66,7 +72,7 @@
 
           # Flash/monitor helpers (nix run .#flash-<variant>, .#monitor).
           # esptool/picocom stay out of the firmware drvs — apps only.
-          espApps = import ./nix/apps.nix { inherit pkgs lib firmwarePackages; };
+          espApps = import ./nix/apps.nix { inherit pkgs lib toolsPkgs firmwarePackages; };
         in
         {
           packages = firmwarePackages // espApps.packages;
@@ -78,9 +84,9 @@
 
           devShell = pkgs.mkShell {
             name = "weather-station-idf";
-            # NB: no pkgs.esptool — it propagates packaging -> pyparsing 2.4.7,
-            # which can shadow the IDF env's 2.3.1 and break ldgen. Use IDF's
-            # bundled esptool (idf.py flash) instead.
+            # NB: no esptool package directly — it propagates packaging ->
+            # newer pyparsing, which can shadow the IDF env's 2.3.1 and break
+            # ldgen. The devTools exec wrapper avoids that.
             buildInputs = (with pkgs; [
               git
               cmake
@@ -91,7 +97,7 @@
               pkgconfig
               ncurses5
             ]) ++ [ esp-idf-447 xtensa-toolchain-patch5 ]
-              # esptool.py (exec wrapper, keeps pyparsing off PYTHONPATH) + picocom
+              # esptool 5.x (exec wrapper, keeps pyparsing off PYTHONPATH) + picocom
               # for driving flash/monitor manually; see nix/apps.nix.
               ++ espApps.devTools;
             shellHook = ''

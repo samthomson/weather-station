@@ -1,25 +1,22 @@
 # Flash/monitor CLI: `nix run .#flash-<variant>`, `.#flash-erase-<variant>`,
 # `.#monitor` — see docs for usage.
 #
-# esptool (3.2) and picocom (3.2a) come from the pinned nixpkgs and are
-# referenced ONLY inside these wrapper scripts. They must never enter the
-# firmware derivations' inputs: nixpkgs esptool propagates packaging ->
-# pyparsing 2.4.7, which shadows the IDF env's 2.3.1 and breaks ldgen
-# (WP1 gotcha). `devTools` below wraps esptool for the devshell the same
-# way, so nothing python-propagated lands on the shell's PYTHONPATH.
+# esptool (5.x) and picocom come from `toolsPkgs` (nixpkgs-unstable,
+# separate flake input): flashing only talks the serial protocol and has
+# zero coupling to the pinned IDF-era snapshot, so the tools track modern
+# releases. They must never enter the firmware derivations' inputs, and in
+# the devshell esptool is exposed through a thin exec wrapper so its
+# python propagation cannot land on PYTHONPATH and shadow the IDF env's
+# pyparsing 2.3.1 (breaks ldgen — WP1 gotcha).
 #
-# nixpkgs snapshot is 2021-11: no writeShellApplication yet, hence
-# writeShellScriptBin + explicit `set -euo pipefail`.
-{ pkgs, lib, firmwarePackages }:
+# `pkgs` (the 2021-11 snapshot) still provides writeShellScriptBin for the
+# wrapper drvs; no writeShellApplication there, hence explicit
+# `set -euo pipefail`.
+{ pkgs, lib, toolsPkgs, firmwarePackages }:
 
 let
-  # esptool 3.2 is pure python and works on macOS; the 2021-11 nixpkgs meta
-  # only lists linux. Meta-only override: same out path, no rebuild.
-  esptoolPkg = pkgs.esptool.overrideAttrs (old: {
-    meta = old.meta // { platforms = lib.platforms.unix; };
-  });
-  esptool = "${esptoolPkg}/bin/esptool.py";
-  picocom = "${pkgs.picocom}/bin/picocom";
+  esptool = "${toolsPkgs.esptool}/bin/esptool";
+  picocom = "${toolsPkgs.picocom}/bin/picocom";
 
   variantNames = map (lib.removePrefix "firmware-") (builtins.attrNames firmwarePackages);
 
@@ -51,9 +48,9 @@ let
       ${requirePort}
       ${lib.optionalString erase ''
         echo "erasing entire flash (this wipes NVS, i.e. the station identity) ..."
-        ${esptool} --chip esp32 --port "$PORT" --baud 115200 erase_flash
+        ${esptool} --chip esp32 --port "$PORT" --baud 115200 erase-flash
       ''}
-      exec ${esptool} --chip esp32 --port "$PORT" --baud 115200 write_flash \
+      exec ${esptool} --chip esp32 --port "$PORT" --baud 115200 write-flash \
         0x1000 ${fw}/bootloader.bin \
         0x8000 ${fw}/partition-table.bin \
         0xe000 ${fw}/ota_data_initial.bin \
@@ -105,7 +102,7 @@ in
   # For the devshell: picocom directly (plain C program), esptool through a
   # thin exec wrapper so its python propagation stays out of PYTHONPATH.
   devTools = [
-    pkgs.picocom
-    (pkgs.writeShellScriptBin "esptool.py" ''exec ${esptool} "$@"'')
+    toolsPkgs.picocom
+    (pkgs.writeShellScriptBin "esptool" ''exec ${esptool} "$@"'')
   ];
 }
