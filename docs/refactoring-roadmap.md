@@ -3,6 +3,22 @@
 Decisions made 2026-07 while planning the nixification. Records *why* the
 current shape exists and what the intended end state is.
 
+## Decision log (2026-07-10)
+
+| # | Question | Decision |
+|---|---|---|
+| Q1 | ESP8266 support | Dropped. ESP32-only; all board `#ifdef`s purged. |
+| Q2 | Arduino layer | Keep: ESP-IDF + arduino-esp32 as IDF component. Pure-IDF migration is step 3, incremental. |
+| Q3 | Per-station builds | Dropped. Identity = runtime NVS via dashboard; committed secret-free `factory_defaults.h`. No secrets may ever enter the nix store. |
+| Q4 | Feature-flag abstraction | Nix attrset: `variants = { mvp = { bme280 = true; … }; }` → `-DENABLE_*` defines + per-variant component set. No Kconfig migration now. |
+| Q5 | Day-one variants | `mvp`, `airquality-sps30`, `airquality-sds011`. |
+| Q6 | Toolchain versions | Pin arduino-esp32 **2.0.17** + ESP-IDF **4.4.x** (identical to the last proven PlatformIO build). Upgrade to 3.x / IDF 5.x later as its own commit, after tests exist. |
+| Q7 | Dependency pinning | Every Arduino library = flake input with `flake = false`, pinned via flake.lock. |
+| Q8 | PlatformIO removal | Same commit as the flake — clean cutover. Flash/monitor via `nix run` wrappers (esptool). |
+| Q9 | Host test framework | Catch2 v3 + CTest, wired into `nix flake check`. |
+| Q10 | CI | GitHub Actions running `nix flake check` from day one. |
+| Q11 | QEMU emulation | Boot-smoke check in phase 2 (serial banner + AP SSID line). QEMU has **no WiFi emulation** — dashboard/relay flows are never emulated. |
+
 ## Done
 
 - **ESP8266 dropped.** ESP32-only. Removed `nodemcuv2_station1`, all

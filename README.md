@@ -159,7 +159,9 @@ Each tag: `[sensor_type, value, model]`
 ├── include/config_store.h
 ├── include/web_dashboard.h
 ├── include/factory_defaults.h     # First-boot NVS seed + compile-time sensor set
-├── docs/refactoring-roadmap.md    # Future refactoring plan (nix, pure ESP-IDF)
+├── docs/refactoring-roadmap.md    # Decision log + future refactoring plan (nix, pure ESP-IDF)
+├── docs/nixify-plan.md            # Nixification work packages (WP1–WP7, tests, QEMU)
+├── docs/nixify-handoff.md         # Handoff prompt to execute phase 1
 ├── platformio.ini
 └── README.md
 ```
