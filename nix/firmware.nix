@@ -9,7 +9,7 @@
 # (needs pyparsing < 2.4). IDF uses its bundled esptool.
 { pkgs
 , espIdf            # esp-idf 4.4.7 derivation (nix/esp-idf.nix)
-, xtensaToolchain   # gcc-xtensa-esp32-elf-bin, crosstool esp-2021r2-patch5
+, xtensaToolchain   # xtensa gcc 8.4.0 (nix/xtensa-toolchain.nix)
 , arduinoEsp32Src   # arduino-esp32 2.0.17 flake input (becomes components/arduino)
 , arduinoLibs       # import ./arduino-libs.nix { ... }
 , projectRoot       # flake self (filtered down to the IDF project files)
@@ -125,8 +125,12 @@ pkgs.stdenv.mkDerivation {
       -DWX_VARIANT_DEFINES='${definesArg}'
       -DEXTRA_COMPONENT_DIRS='${componentsFarm}'
     )
-    idf.py "''${idfArgs[@]}" set-target esp32
-    idf.py "''${idfArgs[@]}" build
+    # `python idf.py`, not `idf.py`: the env's bin/python is a shell wrapper
+    # (sets NIX_PYTHONPATH), and macOS refuses script-interpreter shebang
+    # chains (ENOEXEC); Linux tolerates them. Running the wrapper as a
+    # command works on both.
+    python "$IDF_PATH/tools/idf.py" "''${idfArgs[@]}" set-target esp32
+    python "$IDF_PATH/tools/idf.py" "''${idfArgs[@]}" build
   '';
 
   installPhase = ''

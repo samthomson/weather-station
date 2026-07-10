@@ -65,7 +65,7 @@ Use **industry-standard** colours for power rails, and **project theme** colours
 
 ## Setup
 
-1. Install [nix](https://nixos.org/download/) (with flakes enabled).
+1. Install [nix](https://nixos.org/download/) (with flakes enabled). Supported systems: `x86_64-linux` and `aarch64-darwin` (Apple Silicon).
 2. Connect the board via USB and flash. For a **brand-new or recycled board**, erase first so NVS starts clean:
    ```bash
    # Erase + flash (new/recycled board — clears all NVS):
@@ -77,7 +77,7 @@ Use **industry-standard** colours for power rails, and **project theme** colours
    # Monitor serial output (picocom, 115200 baud; exit with Ctrl-A Ctrl-X):
    nix run .#monitor -- [PORT]
    ```
-   `PORT` is optional and defaults to `/dev/ttyUSB0`.
+   `PORT` is optional and defaults to `/dev/ttyUSB0` (macOS: pass your `/dev/cu.usbserial-*` device).
 
    To build the firmware without flashing: `nix build .#firmware-mvp` (other variants: `firmware-airquality-sps30`, `firmware-airquality-sds011`).
 

@@ -13,7 +13,12 @@
 { pkgs, lib, firmwarePackages }:
 
 let
-  esptool = "${pkgs.esptool}/bin/esptool.py";
+  # esptool 3.2 is pure python and works on macOS; the 2021-11 nixpkgs meta
+  # only lists linux. Meta-only override: same out path, no rebuild.
+  esptoolPkg = pkgs.esptool.overrideAttrs (old: {
+    meta = old.meta // { platforms = lib.platforms.unix; };
+  });
+  esptool = "${esptoolPkg}/bin/esptool.py";
   picocom = "${pkgs.picocom}/bin/picocom";
 
   variantNames = map (lib.removePrefix "firmware-") (builtins.attrNames firmwarePackages);
@@ -64,28 +69,38 @@ let
     exec ${picocom} --baud 115200 "$PORT"
   '';
 
-  mkApp = drv: name: description: {
-    type = "app";
-    program = "${drv}/bin/${name}";
-    meta = { inherit description; };
-  };
-
-  flashApps = lib.foldl'
+  # One writeShellScriptBin per command, exposed twice: as `apps` for
+  # `nix run`, and as `packages` so they are buildable (`nix build
+  # .#flash-mvp`) and CI/checks catch eval or platform regressions.
+  scripts = lib.foldl'
     (acc: variant: acc // {
-      "flash-${variant}" =
-        mkApp (mkFlash { inherit variant; }) "flash-${variant}"
-          "Flash the ${variant} firmware over serial (esptool, 115200 baud)";
-      "flash-erase-${variant}" =
-        mkApp (mkFlash { inherit variant; erase = true; }) "flash-erase-${variant}"
-          "Erase entire flash (wipes NVS), then flash the ${variant} firmware";
+      "flash-${variant}" = {
+        drv = mkFlash { inherit variant; };
+        description = "Flash the ${variant} firmware over serial (esptool, 115200 baud)";
+      };
+      "flash-erase-${variant}" = {
+        drv = mkFlash { inherit variant; erase = true; };
+        description = "Erase entire flash (wipes NVS), then flash the ${variant} firmware";
+      };
     })
-    { }
+    {
+      monitor = {
+        drv = monitor;
+        description = "Serial monitor at 115200 baud (picocom; exit: Ctrl-A Ctrl-X)";
+      };
+    }
     variantNames;
 in
 {
-  apps = flashApps // {
-    monitor = mkApp monitor "monitor" "Serial monitor at 115200 baud (picocom; exit: Ctrl-A Ctrl-X)";
-  };
+  apps = lib.mapAttrs
+    (name: s: {
+      type = "app";
+      program = "${s.drv}/bin/${name}";
+      meta = { inherit (s) description; };
+    })
+    scripts;
+
+  packages = lib.mapAttrs (_: s: s.drv) scripts;
 
   # For the devshell: picocom directly (plain C program), esptool through a
   # thin exec wrapper so its python propagation stays out of PYTHONPATH.

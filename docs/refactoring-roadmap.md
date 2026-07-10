@@ -49,6 +49,9 @@ packages (ESP-IDF 4.4.7, arduino-esp32 2.0.17, gcc 8.4.0), `nix run`
 flash/erase/monitor wrappers, CI running `nix flake check`. mvp image
 1,079,552 B (−0.57 % vs the 1,085,725 B reference). Phase-1 sign-off
 waits on the manual hardware parity check (`nix run .#flash-mvp`).
+Systems: `x86_64-linux` and `aarch64-darwin` (Espressif macos-arm64
+toolchain binaries; IDF python env from plain nixpkgs python39 — the
+earlier mach-nix env was dropped as unmaintained).
 
 ## Step 2 — Testability refactor
 
