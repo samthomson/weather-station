@@ -1,0 +1,35 @@
+# CI: `nix flake check` builds all firmware variants (see nix/variants.nix)
+# via ESP-IDF. The first uncached run downloads the pinned toolchain
+# (several GBs) and can take 30+ minutes. Caching is best-effort:
+# cache-nix-action snapshots /nix/store into the GitHub Actions cache
+# (10 GB per-repo cap, LRU eviction), so warm runs skip the toolchain
+# fetch — but an evicted cache silently means a cold run again.
+name: ci
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  flake-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@v14
+      # Replaces DetSys magic-nix-cache-action (EOL'd 2025-02-01; the old
+      # step was a silent no-op). gc-max-store-size trims the store before
+      # saving so the cache stays under GitHub's 10 GB cap; purge-* drops
+      # stale entries so old caches don't evict the live one.
+      - uses: nix-community/cache-nix-action@v7
+        with:
+          primary-key: nix-${{ runner.os }}-${{ hashFiles('**/*.nix', 'flake.lock') }}
+          restore-prefixes-first-match: nix-${{ runner.os }}-
+          # xtensa toolchain + ESP-IDF deps are several GBs uncompressed
+          gc-max-store-size-linux: 6G
+          purge: true
+          purge-prefixes: nix-${{ runner.os }}-
+          purge-created: 0
+          purge-primary-key: never
+      - run: nix flake check -L

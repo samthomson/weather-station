@@ -1,0 +1,115 @@
+# sdkconfig defaults for the weather-station firmware (ESP-IDF 4.4.7,
+# arduino-esp32 2.0.17 as component). Mirrors the pre-nix esp32dev
+# reference build where it matters; everything else stays at IDF defaults.
+
+# Custom partition table: arduino-esp32 min_spiffs layout (~1.9 MB app0/app1).
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
+
+# Board esp32dev: 4 MB flash, DIO @ 40 MHz.
+CONFIG_ESPTOOLPY_FLASHMODE_DIO=y
+CONFIG_ESPTOOLPY_FLASHFREQ_40M=y
+CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
+
+# 240 MHz CPU (arduino default for esp32dev).
+CONFIG_ESP32_DEFAULT_CPU_FREQ_240=y
+
+# Required by arduino-esp32 as an IDF component (its CMakeLists hard-checks
+# a 1000 Hz tick), plus autostart so app_main() calls our setup()/loop().
+CONFIG_FREERTOS_HZ=1000
+CONFIG_AUTOSTART_ARDUINO=y
+
+# mbedtls options required by arduino-esp32 (WiFiClientSecure PSK support),
+# per its "as ESP-IDF component" docs.
+CONFIG_MBEDTLS_PSK_MODES=y
+CONFIG_MBEDTLS_KEY_EXCHANGE_PSK=y
+
+# -Os, like the arduino reference build (IDF default is -Og).
+CONFIG_COMPILER_OPTIMIZATION_SIZE=y
+
+# ---------------------------------------------------------------------------
+# Parity with the arduino-esp32 2.0.17 prebuilt-library sdkconfig
+# (tools/sdk/esp32/sdkconfig in the arduino-esp32 input). The pre-nix
+# reference build linked those prebuilt libs; mirror the options that change
+# generated code, flash size, or RAM/runtime behavior. Deliberately NOT
+# mirrored: CONFIG_BT_ENABLED (linker GCs unused BT in both builds),
+# ETH SPI drivers (GC'd), and CPU freq (reference boots at 160 MHz and is
+# bumped to 240 MHz at runtime by the core; we set 240 MHz directly).
+# ---------------------------------------------------------------------------
+
+# All Arduino cores are built with C++ exceptions + stack smashing protector.
+CONFIG_COMPILER_CXX_EXCEPTIONS=y
+CONFIG_COMPILER_STACK_CHECK_MODE_NORM=y
+
+# PSRAM support with runtime detection (arduino calls psramInit itself, so
+# no boot init). The PSRAM cache workaround adds
+# -mfix-esp32-psram-cache-issue to all code — a large codegen difference.
+CONFIG_ESP32_SPIRAM_SUPPORT=y
+CONFIG_SPIRAM_BOOT_INIT=n
+CONFIG_SPIRAM_SPEED_80M=y
+CONFIG_SPIRAM_MALLOC_ALWAYSINTERNAL=4096
+CONFIG_SPIRAM_MALLOC_RESERVE_INTERNAL=0
+CONFIG_SPIRAM_OCCUPY_HSPI_HOST=y
+
+# Log levels of the reference libs: silent bootloader, ERROR app, no colors.
+CONFIG_LOG_BOOTLOADER_LEVEL_NONE=y
+CONFIG_LOG_DEFAULT_LEVEL_ERROR=y
+CONFIG_LOG_COLORS=n
+
+# mbedtls/esp-tls feature set of the reference libs.
+CONFIG_MBEDTLS_CAMELLIA_C=y
+CONFIG_MBEDTLS_SSL_PROTO_DTLS=y
+CONFIG_MBEDTLS_ASYMMETRIC_CONTENT_LEN=n
+CONFIG_ESP_TLS_SERVER=y
+
+# esp_http_server: websocket support + large request headers.
+CONFIG_HTTPD_MAX_REQ_HDR_LEN=1024
+CONFIG_HTTPD_WS_SUPPORT=y
+
+# Core dump to flash (min_spiffs reserves a coredump partition).
+CONFIG_ESP_COREDUMP_ENABLE_TO_FLASH=y
+CONFIG_ESP_COREDUMP_DATA_FORMAT_ELF=y
+CONFIG_ESP_COREDUMP_CHECKSUM_CRC32=y
+CONFIG_ESP_COREDUMP_MAX_TASKS_NUM=64
+CONFIG_ESP_COREDUMP_STACK_SIZE=1024
+
+# WiFi buffer / IRAM layout of the reference libs.
+CONFIG_ESP32_WIFI_STATIC_RX_BUFFER_NUM=8
+CONFIG_ESP32_WIFI_STATIC_TX_BUFFER=y
+CONFIG_ESP32_WIFI_CSI_ENABLED=y
+CONFIG_ESP32_WIFI_IRAM_OPT=n
+CONFIG_ESP32_WIFI_RX_IRAM_OPT=n
+
+# lwip behavior of the reference libs (notably DHCP_RESTORE_LAST_IP, which
+# the arduino WiFi reconnect flow relies on).
+CONFIG_LWIP_DHCP_DOES_ARP_CHECK=n
+CONFIG_LWIP_DHCP_GET_NTP_SRV=y
+CONFIG_LWIP_DHCP_OPTIONS_LEN=128
+CONFIG_LWIP_DHCP_RESTORE_LAST_IP=y
+CONFIG_LWIP_ETHARP_TRUST_IP_MAC=y
+CONFIG_LWIP_MAX_SOCKETS=16
+CONFIG_LWIP_SNTP_MAX_SERVERS=3
+CONFIG_LWIP_SNTP_UPDATE_DELAY=10800000
+CONFIG_LWIP_TCPIP_TASK_AFFINITY_CPU0=y
+CONFIG_LWIP_TCPIP_TASK_STACK_SIZE=2560
+CONFIG_LWIP_TCP_MSS=1436
+CONFIG_LWIP_TCP_RTO_TIME=3000
+CONFIG_LWIP_TCP_SYNMAXRTX=6
+CONFIG_LWIP_IPV6_AUTOCONFIG=y
+
+# FreeRTOS / heap / pthread details of the reference libs.
+CONFIG_FREERTOS_ASSERT_ON_UNTESTED_FUNCTION=n
+CONFIG_FREERTOS_FPU_IN_ISR=y
+CONFIG_FREERTOS_IDLE_TASK_STACKSIZE=1024
+CONFIG_FREERTOS_ISR_STACKSIZE=2096
+CONFIG_FREERTOS_WATCHPOINT_END_OF_STACK=y
+CONFIG_HEAP_POISONING_LIGHT=y
+CONFIG_PTHREAD_TASK_STACK_SIZE_DEFAULT=2048
+
+# Misc reference-lib behavior.
+CONFIG_ESP32_XTAL_FREQ_AUTO=y
+CONFIG_ESP32_ULP_COPROC_ENABLED=y
+CONFIG_ESP32_ULP_COPROC_RESERVE_MEM=512
+CONFIG_SPI_FLASH_ERASE_YIELD_DURATION_MS=10
+CONFIG_SPI_FLASH_ERASE_YIELD_TICKS=2
+CONFIG_SPI_FLASH_WRITE_CHUNK_SIZE=4096

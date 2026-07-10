@@ -1,12 +1,14 @@
-.pio
 .vscode
 .idea
 *.swp
 *.swo
 *~
 
+# ESP-IDF / nix build artifacts
+build/
+sdkconfig
+result
+result-*
+
 # macOS
 .DS_Store*
-
-include/secrets.h
-include/secrets_station*.h

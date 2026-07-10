@@ -1,13 +1,12 @@
 # Nostr Weather Station
 
-ESP8266 weather station that posts sensor data to Nostr via WebSocket with BIP-340 Schnorr signatures.
+ESP32 weather station that posts sensor data to Nostr via WebSocket with BIP-340 Schnorr signatures.
 
 **Viewer app:** [github.com/samthomson/weather](https://github.com/samthomson/weather) — sample app for displaying weather data from Nostr events, deployed at [weather.shakespeare.wtf](https://weather.shakespeare.wtf/)
 
 ## Hardware
 
 **Supported Boards:**
-- NodeMCU v2 (ESP8266)
 - ESP32 Dev Board
 
 **Sensors:**
@@ -22,7 +21,7 @@ Wall-powered reference build for new prototypes: **ESP32**, particulates, temp/h
 
 | Qty | Part |
 |-----|------|
-| 1 | ESP32 dev board (same class as `board = esp32dev` in PlatformIO) |
+| 1 | ESP32 dev board (generic ESP32-D0WD dev board, `esp32dev` class) |
 | 1 | BME280 breakout (I2C, 3.3 V) — temperature, humidity, barometric pressure |
 | 1 | PMS5003 — PM1.0, PM2.5, PM10 (include a cable if the module does not ship with one) |
 | 1 | BH1750 breakout (I2C) — ambient light (lux) |
@@ -32,7 +31,7 @@ Wall-powered reference build for new prototypes: **ESP32**, particulates, temp/h
 
 Hookup wire or Dupont jumpers between the dev board and breakouts are assumed by your enclosure / assembly.
 
-**MVP firmware:** In `secrets_stationN.h`, enable `ENABLE_BME280`, `ENABLE_BH1750`, `ENABLE_RAIN`, and `ENABLE_PMS` with `PMS_MODEL "PMS5003"`; set `ENABLE_DHT`, `ENABLE_MQ`, and `ENABLE_OLED` to `false`. Use a PlatformIO ESP32 environment that pulls in the BME280 and BH1750 libraries (for example `esp32dev_station3`).
+**MVP firmware:** the default build flags are defined by the `mvp` variant in `nix/variants.nix` — `ENABLE_BME280`, `ENABLE_BH1750`, `ENABLE_RAIN`, and `ENABLE_PMS` with `PMS_MODEL "PMS5003"` — no configuration needed.
 
 **MVP ESP32 wiring:** PMS5003 serial RX→**GPIO16**, TX→**GPIO17**. BME280 and BH1750 share **I2C** (**GPIO21**=SDA, **GPIO22**=SCL). Rain sensor analog→**GPIO34**.
 
@@ -58,38 +57,33 @@ Use **industry-standard** colours for power rails, and **project theme** colours
 
 ### Pin Connections
 
-**ESP8266 (NodeMCU v2):**
-- DHT11: D7
-- PMS5003: TX→D5, RX→D6
-- MQ sensor: A0
-- OLED: I2C (D1=SCL, D2=SDA)
-
 **ESP32:**
 - DHT11: GPIO4
 - PMS5003: TX→GPIO16 (RX2), RX→GPIO17 (TX2)
 - MQ sensor: GPIO36 (ADC1_CH0)
 - OLED: I2C (GPIO21=SDA, GPIO22=SCL)
 
-**Note:** ESP8266 has one analog pin. ESP32 has many - great for multiple analog sensors!
-
 ## Setup
 
-1. Install [PlatformIO](https://platformio.org/).
-2. *(Optional)* For brand-new boards you do not need to edit any secrets file — the firmware ships with sensible blank defaults and a per-device captive-portal dashboard handles everything. If you want pre-baked factory defaults (handy if you flash a lot of boards), copy `include/secrets.h.example` to e.g. `include/secrets_station_mvp1.h` and fill it in.
-3. Connect the board via USB and flash. For a **brand-new or recycled board**, erase first so NVS starts clean:
+1. Install [nix](https://nixos.org/download/) (with flakes enabled). Supported systems: `x86_64-linux` and `aarch64-darwin` (Apple Silicon).
+2. Connect the board via USB and flash. For a **brand-new or recycled board**, erase first so NVS starts clean:
    ```bash
    # Erase + flash (new/recycled board — clears all NVS):
-   pio run -e esp32dev_mvp3 -t erase && pio run -e esp32dev_mvp3 -t upload
+   nix run .#flash-erase-mvp -- [PORT]
 
    # Flash only (re-flash same board, keep NVS config):
-   pio run -e esp32dev_mvp3 -t upload
+   nix run .#flash-mvp -- [PORT]
 
-   # Monitor serial output:
-   pio device monitor -e esp32dev_mvp3
+   # Monitor serial output (picocom, 115200 baud; exit with Ctrl-A Ctrl-X):
+   nix run .#monitor -- [PORT]
    ```
-   Replace `mvp3` with the correct env number. All MVP envs (`esp32dev_mvp1` … `esp32dev_mvp5`) build the **same firmware**; only the first-boot defaults differ (station name `N/5`, etc.). Track which board is which in [`docs/mvp-stations.md`](docs/mvp-stations.md).
+   `PORT` is optional and defaults to `/dev/ttyUSB0` (macOS: pass your `/dev/cu.usbserial-*` device).
 
-   **Do not use `esptool.py` directly** — it is not on PATH and its bundled copy has missing Python dependencies. Always use `pio run -t erase` / `pio run -t upload`.
+   To build the firmware without flashing: `nix build .#firmware-mvp` (other variants: `firmware-airquality-sps30`, `firmware-airquality-sds011`).
+
+   Every station runs the **same firmware**; identity (name, WiFi, keys) lives in NVS and is set from the dashboard. Track which board is which in [`docs/mvp-stations.md`](docs/mvp-stations.md).
+
+   **Do not use `esptool` directly** — always flash via the `nix run` wrappers, which invoke a pinned esptool with the right flash offsets.
 
    Default Nostr relay on first boot: `wss://relay.relaying.earth`.
 
@@ -168,9 +162,15 @@ Each tag: `[sensor_type, value, model]`
 ├── src/web_dashboard.cpp          # Captive-portal dashboard
 ├── include/config_store.h
 ├── include/web_dashboard.h
-├── include/secrets.h.example      # First-boot factory defaults template
-├── include/secrets_station_mvpN.h # Per-board factory defaults
-├── platformio.ini
+├── include/factory_defaults.h     # First-boot NVS seed (sensor set: nix/variants.nix)
+├── main/                          # ESP-IDF app entry (CMake component)
+├── docs/refactoring-roadmap.md    # Decision log + future refactoring plan (nix, pure ESP-IDF)
+├── docs/nixify-plan.md            # Nixification work packages (WP1–WP7, tests, QEMU)
+├── flake.nix                      # Nix build (firmware variants, flash/monitor apps, devShell)
+├── nix/                           # Toolchain pin + firmware/variant derivations
+├── CMakeLists.txt                 # ESP-IDF project root
+├── sdkconfig.defaults             # ESP-IDF configuration
+├── partitions.csv                 # Flash partition table
 └── README.md
 ```
 
