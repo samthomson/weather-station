@@ -186,6 +186,11 @@ button.savefail{background:var(--err);color:#fff}
 <div class="toggle"><input id="en_pms" type="checkbox"><label for="en_pms">PMS5003 / PMS7003 - particulates</label></div>
 <label>PMS model</label>
 <select id="pms_model"><option>PMS5003</option><option>PMS7003</option></select>
+<div class="toggle"><input id="en_bme680" type="checkbox"><label for="en_bme680">BME680 - temperature, humidity, pressure, gas resistance</label></div>
+<div class="toggle"><input id="en_scd41" type="checkbox"><label for="en_scd41">SCD41 - CO2 (ppm)</label></div>
+<div class="toggle"><input id="en_sgp41" type="checkbox"><label for="en_sgp41">SGP41 - VOC + NOx index</label></div>
+<div class="toggle"><input id="en_mq135" type="checkbox"><label for="en_mq135">MQ-135 - air quality (analog)</label></div>
+<div class="toggle"><input id="en_mq7" type="checkbox"><label for="en_mq7">MQ-7 - carbon monoxide (analog)</label></div>
 <button onclick="saveSensors(this)">Save sensor setup</button>
 
 <h2>Advanced</h2>
@@ -261,7 +266,11 @@ async function refreshStatus(){
     setRow(tbl, 'pressure', s.has_pressure ? 'Pressure'    : null, s.has_pressure ? fmt(s.pressure_hpa) + ' hPa' : null);
     setRow(tbl, 'lux',      s.has_lux      ? 'Light'       : null, s.has_lux ? fmt(s.lux) + ' lux' : null);
     setRow(tbl, 'pm',       s.has_pm       ? 'PM 1 / 2.5 / 10' : null, s.has_pm ? (s.pm1 + ' / ' + s.pm25 + ' / ' + s.pm10) : null);
-    setRow(tbl, 'rain',     (typeof s.rain_raw === 'number' && s.rain_raw > 0) ? 'Rain (raw)' : null, (typeof s.rain_raw === 'number' && s.rain_raw > 0) ? String(s.rain_raw) : null);
+    setRow(tbl, 'co2',      s.has_co2      ? 'CO2' : null, s.has_co2 ? (s.co2_ppm + ' ppm') : null);
+    setRow(tbl, 'voc',      (s.has_voc && s.voc_index > 0) ? 'VOC / NOx index' : null, (s.has_voc && s.voc_index > 0) ? (s.voc_index + ' / ' + s.nox_index) : null);
+    setRow(tbl, 'gas',      s.has_gas      ? 'Gas resistance' : null, s.has_gas ? (s.gas_res_ohm + ' ohm') : null);
+    setRow(tbl, 'mq135',    (typeof s.mq135_raw === 'number' && s.mq135_raw > 0) ? 'MQ-135 (raw)' : null, (typeof s.mq135_raw === 'number' && s.mq135_raw > 0) ? String(s.mq135_raw) : null);
+    setRow(tbl, 'mq7',      (typeof s.mq7_raw === 'number' && s.mq7_raw > 0) ? 'MQ-7 (raw)' : null, (typeof s.mq7_raw === 'number' && s.mq7_raw > 0) ? String(s.mq7_raw) : null);
     if (!tbl.children.length){
       tbl.innerHTML = '<tr data-k="none"><td colspan="2" class="muted">No sensor data yet.</td></tr>';
     }
@@ -292,6 +301,11 @@ async function loadConfig(reveal){
   $('en_bh1750').checked = !!c.en_bh1750;
   $('en_rain').checked   = !!c.en_rain;
   $('en_pms').checked    = !!c.en_pms;
+  $('en_bme680').checked = !!c.en_bme680;
+  $('en_scd41').checked  = !!c.en_scd41;
+  $('en_sgp41').checked  = !!c.en_sgp41;
+  $('en_mq135').checked  = !!c.en_mq135;
+  $('en_mq7').checked    = !!c.en_mq7;
   $('pms_model').value   = c.pms_model || 'PMS5003';
   $('post_interval_s').value = Math.round((c.post_interval_ms || 60000) / 1000);
 }
@@ -427,6 +441,11 @@ function saveSensors(btn){
     en_bh1750: $('en_bh1750').checked,
     en_rain:   $('en_rain').checked,
     en_pms:    $('en_pms').checked,
+    en_bme680: $('en_bme680').checked,
+    en_scd41:  $('en_scd41').checked,
+    en_sgp41:  $('en_sgp41').checked,
+    en_mq135:  $('en_mq135').checked,
+    en_mq7:    $('en_mq7').checked,
     pms_model: $('pms_model').value,
   });
 }
@@ -471,7 +490,7 @@ setInterval(refreshStatus, 5000);
   }
 
   void handleStatus() {
-    StaticJsonDocument<1024> doc;
+    StaticJsonDocument<1536> doc;
     doc["sta_connected"] = status.sta_connected;
     doc["sta_ssid"]      = status.sta_ssid;
     doc["sta_ip"]        = status.sta_ip;
@@ -486,14 +505,23 @@ setInterval(refreshStatus, 5000);
     doc["has_pressure"] = status.has_pressure;
     doc["has_lux"]      = status.has_lux;
     doc["has_pm"]       = status.has_pm;
+    doc["has_co2"]      = status.has_co2;
+    doc["has_voc"]      = status.has_voc;
+    doc["has_gas"]      = status.has_gas;
     if (status.has_temp)     doc["temp_c"]       = status.temp_c;
     if (status.has_humidity) doc["humidity"]     = status.humidity;
     if (status.has_pressure) doc["pressure_hpa"] = status.pressure_hpa;
     if (status.has_lux)      doc["lux"]          = status.lux;
-    doc["rain_raw"] = status.rain_raw;
-    doc["pm1"]      = status.pm1;
-    doc["pm25"]     = status.pm25;
-    doc["pm10"]     = status.pm10;
+    if (status.has_co2)      doc["co2_ppm"]      = status.co2_ppm;
+    if (status.has_voc)      doc["voc_index"]    = status.voc_index;
+    if (status.has_voc)      doc["nox_index"]    = status.nox_index;
+    if (status.has_gas)      doc["gas_res_ohm"]  = status.gas_res_ohm;
+    doc["rain_raw"]   = status.rain_raw;
+    doc["pm1"]        = status.pm1;
+    doc["pm25"]       = status.pm25;
+    doc["pm10"]       = status.pm10;
+    doc["mq135_raw"]  = status.mq135_raw;
+    doc["mq7_raw"]    = status.mq7_raw;
     doc["pubkey_hex"] = status.pubkey_hex;
     doc["device_id"]  = status.device_id;
 
@@ -504,7 +532,7 @@ setInterval(refreshStatus, 5000);
   void handleGetConfig() {
     bool reveal = server.hasArg("reveal") && server.arg("reveal") == "1";
     auto& c = config_store::current();
-    StaticJsonDocument<1536> doc;
+    StaticJsonDocument<2048> doc;
     doc["wifi_ssid"]            = c.wifi_ssid;
     doc["wifi_pass"]            = reveal ? c.wifi_pass : "";
     doc["nostr_relay"]          = c.nostr_relay;
@@ -520,6 +548,11 @@ setInterval(refreshStatus, 5000);
     doc["en_bh1750"]            = c.en_bh1750;
     doc["en_rain"]              = c.en_rain;
     doc["en_pms"]               = c.en_pms;
+    doc["en_bme680"]            = c.en_bme680;
+    doc["en_scd41"]             = c.en_scd41;
+    doc["en_sgp41"]             = c.en_sgp41;
+    doc["en_mq135"]             = c.en_mq135;
+    doc["en_mq7"]               = c.en_mq7;
     doc["pms_model"]            = c.pms_model;
     doc["pubkey_hex"]           = status.pubkey_hex;
     String out; serializeJson(doc, out);
@@ -584,6 +617,11 @@ setInterval(refreshStatus, 5000);
     setBool("en_bh1750", c.en_bh1750);
     setBool("en_rain",   c.en_rain);
     setBool("en_pms",    c.en_pms);
+    setBool("en_bme680", c.en_bme680);
+    setBool("en_scd41",  c.en_scd41);
+    setBool("en_sgp41",  c.en_sgp41);
+    setBool("en_mq135",  c.en_mq135);
+    setBool("en_mq7",    c.en_mq7);
     {
       bool dummy = false;
       String prev = c.pms_model;

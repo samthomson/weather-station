@@ -24,11 +24,20 @@ struct DashboardStatus {
   unsigned int pm1 = 0;
   unsigned int pm25 = 0;
   unsigned int pm10 = 0;
+  unsigned int co2_ppm = 0;      // SCD41
+  int    voc_index = 0;          // SGP41 (1-500, unitless; 100 = average)
+  int    nox_index = 0;          // SGP41 (1-500, unitless; 1 = average)
+  uint32_t gas_res_ohm = 0;      // BME680 heater resistance
+  unsigned int mq135_raw = 0;    // MQ-135 raw ADC (0-4095)
+  unsigned int mq7_raw = 0;      // MQ-7 raw ADC (0-4095)
   bool   has_temp = false;
   bool   has_humidity = false;
   bool   has_pressure = false;
   bool   has_lux = false;
   bool   has_pm = false;
+  bool   has_co2 = false;
+  bool   has_voc = false;
+  bool   has_gas = false;
 
   // Nostr identity (display)
   String npub;       // bech32 "npub1..." computed in main.cpp

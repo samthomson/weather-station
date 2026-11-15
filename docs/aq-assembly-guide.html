@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Air Quality Stations — Stripboard Build</title>
+<style>
+  :root{
+    --ink:#2a2521;--bg:#fbf7f0;--surface:#ffffff;--surface-hi:#f4ede0;
+    --border:#e2dac8;--border-hi:#c8bca5;
+    --text:#2a2521;--text-muted:#766c5f;--text-dim:#9a8f80;
+    --orange:#d97e2e;--orange-hi:#c66c1f;
+    --purple:#7c5fb8;--purple-hi:#6a4ca8;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html,body { background: var(--bg); }
+  body { font-family: -apple-system, 'Inter', 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); line-height: 1.5; }
+  .page { max-width: 980px; margin: 0 auto; padding: 0 20px 24px; }
+  .brand-bar { height: 4px; background: linear-gradient(90deg, var(--orange) 0%, var(--orange) 50%, var(--purple) 100%); margin: 0 -20px 18px; }
+  h1 { text-align: center; font-size: 1.4rem; margin-bottom: 4px; color: var(--orange); font-weight: 700; letter-spacing: -.01em; }
+  h1 .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--purple); margin: 0 8px 2px 0; vertical-align: middle; }
+  .sub { text-align: center; color: var(--text-muted); font-size: 0.85rem; margin-bottom: 24px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 22px; margin-bottom: 18px; box-shadow: 0 1px 3px rgba(42,37,33,.04); }
+  .card h2 { font-size: 0.85rem; margin-bottom: 14px; color: var(--purple); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+  .lede { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.85rem; color: var(--text); }
+  th { background: var(--surface-hi); color: var(--text); padding: 8px 10px; text-align: left; font-weight: 700; border-bottom: 1px solid var(--border); }
+  td { padding: 6px 10px; border-bottom: 1px solid var(--border); }
+  tr:last-child td { border-bottom: none; }
+  .pin { font-family: 'SF Mono', ui-monospace, monospace; font-weight: 800; color: var(--orange-hi); }
+  ::selection { background: var(--orange); color: #fff; }
+  table.matrix td, table.matrix th { vertical-align: middle; padding: 10px 8px; }
+  table.matrix thead th {
+    border-bottom: none;
+    font-size: 0.74rem;
+    letter-spacing: 0.02em;
+  }
+  table.matrix thead th.m-corner {
+    background: linear-gradient(180deg, #334155 0%, #1e293b 100%);
+    color: #f1f5f9;
+    text-align: left;
+    min-width: 3.2rem;
+    font-weight: 800;
+  }
+  table.matrix thead th.module {
+    border-left: 1px solid rgba(255,255,255,.2);
+    text-align: center;
+    vertical-align: bottom;
+    font-weight: 800;
+    line-height: 1.35;
+    padding: 14px 8px;
+  }
+  table.matrix thead th.module .mod-sub {
+    display: block;
+    margin-top: 6px;
+    font-weight: 600;
+    font-size: 0.68rem;
+    opacity: .92;
+  }
+  table.matrix thead th.mod-esp   { background: linear-gradient(180deg, #1d4ed8 0%, #1e40af 100%); color: #eff6ff; }
+  table.matrix thead th.mod-pms   { background: linear-gradient(180deg, #7c3aed 0%, #6d28d9 100%); color: #f5f3ff; }
+  table.matrix thead th.mod-scd   { background: linear-gradient(180deg, #059669 0%, #047857 100%); color: #ecfdf5; }
+  table.matrix thead th.mod-sgp   { background: linear-gradient(180deg, #0e7490 0%, #0f766e 100%); color: #ecfeff; }
+  table.matrix thead th.mod-b680  { background: linear-gradient(180deg, #4f46e5 0%, #4338ca 100%); color: #eef2ff; }
+  table.matrix thead th.mod-mq    { background: linear-gradient(180deg, #be123c 0%, #9f1239 100%); color: #fff1f2; }
+
+  table.matrix tbody th {
+    background: var(--surface-hi) !important;
+    color: var(--text) !important;
+    font-weight: 800;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+    width: 3.2rem;
+  }
+  table.matrix tbody td.meta {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    font-weight: 600;
+    color: var(--text);
+    text-align: left;
+  }
+  table.matrix tbody td.mod-esp  { background: #eff6ff; border-bottom: 1px solid #bfdbfe; color: #1e3a8a; text-align: left;   font-weight: 600; }
+  table.matrix tbody td.mod-pms  { background: #ece5f6; border-bottom: 1px solid #c8b3e5; color: #4c1d95; text-align: center; font-weight: 700; }
+  table.matrix tbody td.mod-scd  { background: #ecfdf5; border-bottom: 1px solid #a7f3d0; color: #064e3b; text-align: center; font-weight: 700; }
+  table.matrix tbody td.mod-sgp  { background: #ecfeff; border-bottom: 1px solid #a5f3fc; color: #134e4a; text-align: center; font-weight: 700; }
+  table.matrix tbody td.mod-b680 { background: #eef2ff; border-bottom: 1px solid #c7d2fe; color: #312e81; text-align: center; font-weight: 700; }
+  table.matrix tbody td.mod-mq   { background: #fff1f2; border-bottom: 1px solid #fecdd3; color: #881337; text-align: center; font-weight: 700; }
+
+  table.matrix tbody td.na {
+    color: var(--text-dim);
+    font-style: italic;
+    font-weight: 500;
+  }
+
+  .wire-chip {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    border: 1px solid rgba(0,0,0,.12);
+    box-shadow: 0 1px 2px rgba(0,0,0,.06);
+  }
+  .wire-chip.black  { background: #0f172a; color: #f8fafc; border-color: #0f172a; }
+  .wire-chip.orange { background: #ea580c; color: #fff7ed; border-color: #c2410c; }
+  .wire-chip.blue   { background: #2563eb; color: #eff6ff; border-color: #1d4ed8; }
+  .wire-chip.yellow { background: #ca8a04; color: #fefce8; border-color: #a16207; }
+  .wire-chip.green  { background: #16a34a; color: #f0fdf4; border-color: #15803d; }
+  .wire-chip.grey   { background: #64748b; color: #f1f5f9; border-color: #475569; }
+  .wire-chip.red    { background: #dc2626; color: #fef2f2; border-color: #b91c1c; }
+  .wire-chip.purple { background: #7c3aed; color: #f5f3ff; border-color: #6d28d9; }
+  .wire-chip.white  { background: #f8fafc; color: #1e293b; border-color: #94a3b8; }
+  .wire-chip.brown  { background: #78350f; color: #fef3c7; border-color: #92400e; }
+  .wire-chip.wire-inline {
+    padding: 2px 7px;
+    font-size: 0.62rem;
+    margin: 2px 4px 2px 0;
+    vertical-align: middle;
+  }
+  .wire-scale {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 7px 0;
+  }
+  .wire-bar {
+    flex: 0 0 auto;
+    display: block;
+    height: 10px;
+    border-radius: 3px;
+    border: 1px solid rgba(0,0,0,.18);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.25), 0 1px 2px rgba(0,0,0,.08);
+  }
+  .wire-bar.len-10 { width: 100px; }
+  .wire-bar.len-15 { width: 150px; }
+  .wire-bar.len-30 { width: 300px; max-width: calc(100% - 5rem); }
+  .wire-bar.black  { background: #0f172a; border-color: #0f172a; }
+  .wire-bar.orange { background: #ea580c; border-color: #c2410c; }
+  .wire-bar.blue   { background: #2563eb; border-color: #1d4ed8; }
+  .wire-bar.yellow { background: #ca8a04; border-color: #a16207; }
+  .wire-bar.green  { background: #16a34a; border-color: #15803d; }
+  .wire-bar.grey   { background: #64748b; border-color: #475569; }
+  .wire-bar.red    { background: #dc2626; border-color: #b91c1c; }
+  .wire-bar.purple { background: #7c3aed; border-color: #6d28d9; }
+  .wire-bar.white  { background: #f8fafc; border-color: #94a3b8; }
+  .wire-bar.brown  { background: #78350f; border-color: #92400e; }
+  .wire-scale-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--text);
+    min-width: 3.5rem;
+  }
+  .wire-list { padding: 4px 0 8px; }
+  .cables td.wire-col { padding: 8px 10px; vertical-align: middle; }
+  .cables td.wire-col .wire-scale { margin: 3px 0; }
+  .cables td.qty-col { width: 3rem; text-align: center; font-weight: 700; color: var(--text-muted); }
+  .shop-group td {
+    background: var(--surface-hi);
+    font-size: 0.78rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--purple);
+    padding: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .shop-subgroup td {
+    background: var(--surface);
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    padding: 8px 10px 8px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  table.matrix tbody td.conn { white-space: nowrap; }
+
+  .matrix-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    box-shadow: 0 4px 24px rgba(42, 37, 33, .06);
+  }
+  table.matrix { border-radius: 12px; overflow: hidden; font-size: 0.78rem; table-layout: fixed; }
+  table.matrix tbody tr:last-child th,
+  table.matrix tbody tr:last-child td { border-bottom: none; }
+
+  .count-chip {
+    display: inline-block;
+    padding: 2px 9px;
+    margin-left: 7px;
+    border-radius: 999px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    font-family: 'SF Mono', ui-monospace, monospace;
+    background: var(--surface-hi);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    vertical-align: middle;
+  }
+  .count-chip b { color: var(--purple-hi); font-weight: 800; }
+  .station-head {
+    text-align: center;
+    margin: 34px 0 18px;
+    padding-top: 22px;
+    border-top: 2px solid var(--border);
+  }
+  .station-head h2 { font-size: 1.05rem; color: var(--ink); font-weight: 800; letter-spacing: -.01em; }
+  .station-head p { font-size: 0.82rem; color: var(--text-muted); margin-top: 2px; }
+  .station-head .env { font-family: 'SF Mono', ui-monospace, monospace; font-weight: 800; color: var(--purple); }
+</style>
+</head>
+<body>
+<div class="page">
+<div class="brand-bar"></div>
+
+<h1><span class="dot"></span>Air Quality Stations <span style="color:var(--text-dim);font-weight:400">— Stripboard Build</span></h1>
+<p class="sub">30-pin ESP32 · stripboard · sensors in the module directly above the ESP32 · one 15&nbsp;cm F–M wire per connection</p>
+
+<!-- ============================================================ -->
+<!-- STATION 8 · AQ MINIMAL                                        -->
+<!-- ============================================================ -->
+<div class="station-head">
+<h2>Minimal air station</h2>
+<p><span class="env">aq8</span> · PMS7003 + MQ-135 + MQ-7 · 5&nbsp;V ≥&nbsp;2&nbsp;A supply (two MQ heaters draw ~300&nbsp;mA constant)</p>
+</div>
+
+<div class="card">
+<h2>Stripboard matrix</h2>
+<p class="lede">One row = one net. Every module lands on the row with its own stub. MQ <b>D0</b> pins stay unconnected. GPIO&nbsp;35/36 are input-only — safe for the AO outputs. All three sensors ship with male pins — tails plug straight on.</p>
+
+<div class="matrix-wrap">
+<table class="matrix">
+  <thead>
+    <tr>
+      <th class="m-corner" scope="col">Row</th>
+      <th class="m-corner" scope="col">Net</th>
+      <th scope="col" class="module mod-esp">ESP32 DevKit<span class="mod-sub">USB at top · 30-pin</span></th>
+      <th scope="col" class="module mod-pms">PMS7003<span class="mod-sub">5V UART</span></th>
+      <th scope="col" class="module mod-mq">MQ-135<span class="mod-sub">5V heater + AO</span></th>
+      <th scope="col" class="module mod-mq">MQ-7<span class="mod-sub">5V heater + AO</span></th>
+    </tr>
+  </thead>
+  <tbody>
+<tr>
+  <th scope="row">1</th>
+  <td class="meta net"><span class="pin">GND</span></td>
+  <td class="mod-esp conn"><span class="wire-chip blue wire-inline">Blue</span><span class="pin">GND</span></td>
+  <td class="mod-pms conn"><span class="wire-chip blue wire-inline">Blue</span><b>GND</b></td>
+  <td class="mod-mq conn"><span class="wire-chip blue wire-inline">Blue</span><b>GND</b></td>
+  <td class="mod-mq conn"><span class="wire-chip blue wire-inline">Blue</span><b>GND</b></td>
+</tr>
+<tr>
+  <th scope="row">2</th>
+  <td class="meta net"><span class="pin">5V</span></td>
+  <td class="mod-esp conn"><span class="wire-chip red wire-inline">Red</span><span class="pin">VIN</span></td>
+  <td class="mod-pms conn"><span class="wire-chip red wire-inline">Red</span><b>VCC</b></td>
+  <td class="mod-mq conn"><span class="wire-chip red wire-inline">Red</span><b>VCC</b></td>
+  <td class="mod-mq conn"><span class="wire-chip red wire-inline">Red</span><b>VCC</b></td>
+</tr>
+<tr>
+  <th scope="row">3</th>
+  <td class="meta net">UART PMS&nbsp;→ ESP</td>
+  <td class="mod-esp conn"><span class="wire-chip green wire-inline">Green</span><span class="pin">RX2 · 16</span></td>
+  <td class="mod-pms conn"><span class="wire-chip green wire-inline">Green</span><b>TXD</b></td>
+  <td class="mod-mq na">—</td>
+  <td class="mod-mq na">—</td>
+</tr>
+<tr>
+  <th scope="row">4</th>
+  <td class="meta net">UART ESP&nbsp;→ PMS</td>
+  <td class="mod-esp conn"><span class="wire-chip grey wire-inline">Grey</span><span class="pin">TX2 · 17</span></td>
+  <td class="mod-pms conn"><span class="wire-chip grey wire-inline">Grey</span><b>RXD</b></td>
+  <td class="mod-mq na">—</td>
+  <td class="mod-mq na">—</td>
+</tr>
+<tr>
+  <th scope="row">5</th>
+  <td class="meta net">MQ-135 analog</td>
+  <td class="mod-esp conn"><span class="wire-chip yellow wire-inline">Yellow</span><span class="pin">D36 · VP</span></td>
+  <td class="mod-pms na">—</td>
+  <td class="mod-mq conn"><span class="wire-chip yellow wire-inline">Yellow</span><b>A0</b></td>
+  <td class="mod-mq na">—</td>
+</tr>
+<tr>
+  <th scope="row">6</th>
+  <td class="meta net">MQ-7 analog</td>
+  <td class="mod-esp conn"><span class="wire-chip brown wire-inline">Brown</span><span class="pin">D35</span></td>
+  <td class="mod-pms na">—</td>
+  <td class="mod-mq na">—</td>
+  <td class="mod-mq conn"><span class="wire-chip brown wire-inline">Brown</span><b>A0</b></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+
+<div class="card">
+<h2>Cables — minimal air station</h2>
+<p class="lede">Three F–M parts per connection, all pluggable and no M–M anywhere: a <b>15&nbsp;cm stub</b> (male end soldered into the stripboard row, female socket up), a <b>30&nbsp;cm riser</b> (its male end into the stub's socket, female socket up), and a <b>10&nbsp;cm sensor tail</b> (its male end into the riser's socket, its female onto the sensor's male pin). The ESP32 skips riser and tail — its stub's female goes straight onto the DevKit's pins.</p>
+<table class="cables">
+<tr class="shop-group"><td colspan="2">ESP32</td></tr>
+<tr class="shop-subgroup"><td colspan="2">15&nbsp;cm · F–M · perfboard stub (M soldered into the row, F straight onto the ESP32 pins)</td></tr>
+<tr><td colspan="2" class="wire-col"><div class="wire-list">
+  <span class="wire-chip blue wire-inline">Blue</span>
+  <span class="wire-chip red wire-inline">Red</span>
+  <span class="wire-chip green wire-inline">Green</span>
+  <span class="wire-chip grey wire-inline">Grey</span>
+  <span class="wire-chip yellow wire-inline">Yellow</span>
+  <span class="wire-chip brown wire-inline">Brown</span>
+</div></td></tr>
+
+<tr class="shop-group"><td colspan="2">PMS7003</td></tr>
+<tr class="shop-subgroup"><td colspan="2">15&nbsp;cm · F–M · perfboard stub (M soldered into the row)</td></tr>
+<tr><td colspan="2" class="wire-col"><div class="wire-list">
+  <span class="wire-chip blue wire-inline">Blue</span>
+  <span class="wire-chip red wire-inline">Red</span>
+  <span class="wire-chip green wire-inline">Green</span>
+  <span class="wire-chip grey wire-inline">Grey</span>
+</div></td></tr>
+<tr class="shop-subgroup"><td colspan="2">30&nbsp;cm · F–M · riser (M into the stub's female)</td></tr>
+<tr><td colspan="2" class="wire-col"><div class="wire-list">
+  <span class="wire-chip blue wire-inline">Blue</span>
+  <span class="wire-chip red wire-inline">Red</span>
+  <span class="wire-chip green wire-inline">Green</span>
+  <span class="wire-chip grey wire-inline">Grey</span>
+</div></td></tr>
+<tr class="shop-subgroup"><td colspan="2">10&nbsp;cm · F–M · sensor tail (F on the sensor pin)</td></tr>
+<tr><td colspan="2" class="wire-col"><div class="wire-list">
+  <span class="wire-chip blue wire-inline">Blue</span>
+  <span class="wire-chip red wire-inline">Red</span>
+  <span class="wire-chip green wire-inline">Green</span>
+  <span class="wire-chip grey wire-inline">Grey</span>
+</div></td></tr>
+<tr class="shop-group"><td colspan="2">MQ-135</td></tr>
+<tr class="shop-subgroup"><td colspan="2">15&nbsp;cm · F–M · perfboard stub (M soldered into the row)</td></tr>
+<tr><td colspan="2" class="wire-col"><div class="wire-list">
+  <span class="wire-chip blue wire-inline">Blue</span>
+  <span class="wire-chip red wire-inline">Red</span>
+  <span class="wire-chip yellow wire-inline">Yellow</span>
+</div></td></tr>
+<tr class="shop-subgroup"><td colspan="2">30&nbsp;cm · F–M · riser (M into the stub's female)</td></tr>
+<tr><td colspan="2" class="wire-col"><div class="wire-list">
+  <span class="wire-chip blue wire-inline">Blue</span>
+  <span class="wire-chip red wire-inline">Red</span>
+  <span class="wire-chip yellow wire-inline">Yellow</span>
+</div></td></tr>
+<tr class="shop-subgroup"><td colspan="2">10&nbsp;cm · F–M · sensor tail (F on the sensor pin)</td></tr>
+<tr><td colspan="2" class="wire-col"><div class="wire-list">
+  <span class="wire-chip blue wire-inline">Blue</span>
+  <span class="wire-chip red wire-inline">Red</span>
+  <span class="wire-chip yellow wire-inline">Yellow</span>
+</div></td></tr>
+<tr class="shop-group"><td colspan="2">MQ-7</td></tr>
+<tr class="shop-subgroup"><td colspan="2">15&nbsp;cm · F–M · perfboard stub (M soldered into the row)</td></tr>
+<tr><td colspan="2" class="wire-col"><div class="wire-list">
+  <span class="wire-chip blue wire-inline">Blue</span>
+  <span class="wire-chip red wire-inline">Red</span>
+  <span class="wire-chip brown wire-inline">Brown</span>
+</div></td></tr>
+<tr class="shop-subgroup"><td colspan="2">30&nbsp;cm · F–M · riser (M into the stub's female)</td></tr>
+<tr><td colspan="2" class="wire-col"><div class="wire-list">
+  <span class="wire-chip blue wire-inline">Blue</span>
+  <span class="wire-chip red wire-inline">Red</span>
+  <span class="wire-chip brown wire-inline">Brown</span>
+</div></td></tr>
+<tr class="shop-subgroup"><td colspan="2">10&nbsp;cm · F–M · sensor tail (F on the sensor pin)</td></tr>
+<tr><td colspan="2" class="wire-col"><div class="wire-list">
+  <span class="wire-chip blue wire-inline">Blue</span>
+  <span class="wire-chip red wire-inline">Red</span>
+  <span class="wire-chip brown wire-inline">Brown</span>
+</div></td></tr>
+<tr><td colspan="2" style="font-weight:700;padding-top:10px"><b>36</b> wires for the minimal air station (16 stubs + 10 risers + 10 tails)</td></tr>
+</table>
+
+</div>
+
+<!-- ============================================================ -->
+<!-- STATION 9 · AQ MAXIMAL                                        -->
+<!-- ============================================================ -->
+<div class="station-head">
+<h2>Maximal air station</h2>
+<p><span class="env">aq9</span> · PMS7003 + SCD41 + SGP41 + BME680 · I²C sensors wire in parallel (no address clashes: 0x62 / 0x59 / 0x77)</p>
+</div>
+
+<div class="card">
+<h2>Stripboard matrix</h2>
+<p class="lede">One row = one net. Every module lands on the row with its own stub. <b>Solder male pin headers into the SCD41, SGP41 and BME680 boards first</b> — they ship with female holes — then everything uses the same tails as the male-pin sensors. BME680: <b>CS</b> and <b>SDO</b> stay unconnected (board ties CS high for I²C; if the sensor is not detected, bridge CS to 3V3). SGP41: use the <b>3.3V</b> pin, leave <b>VIN</b> empty.</p>
+
+<div class="matrix-wrap">
+<table class="matrix">
+  <thead>
+    <tr>
+      <th class="m-corner" scope="col">Row</th>
+      <th class="m-corner" scope="col">Net</th>
+      <th scope="col" class="module mod-esp">ESP32 DevKit<span class="mod-sub">USB at top · 30-pin</span></th>
+      <th scope="col" class="module mod-pms">PMS7003<span class="mod-sub">5V UART</span></th>
+      <th scope="col" class="module mod-scd">SCD41<span class="mod-sub">I²C 0x62 + 3V3</span></th>
+      <th scope="col" class="module mod-sgp">SGP41<span class="mod-sub">I²C 0x59 + 3V3</span></th>
+      <th scope="col" class="module mod-b680">BME680<span class="mod-sub">I²C 0x77 + 3V3</span></th>
+    </tr>
+  </thead>
+  <tbody>
+<tr>
+  <th scope="row">1</th>
+  <td class="meta net"><span class="pin">GND</span></td>
+  <td class="mod-esp conn"><span class="wire-chip blue wire-inline">Blue</span><span class="pin">GND</span></td>
+  <td class="mod-pms conn"><span class="wire-chip blue wire-inline">Blue</span><b>GND</b></td>
+  <td class="mod-scd conn"><span class="wire-chip blue wire-inline">Blue</span><b>GND</b></td>
+  <td class="mod-sgp conn"><span class="wire-chip blue wire-inline">Blue</span><b>GND</b></td>
+  <td class="mod-b680 conn"><span class="wire-chip blue wire-inline">Blue</span><b>GND</b></td>
+</tr>
+<tr>
+  <th scope="row">2</th>
+  <td class="meta net"><span class="pin">5V</span></td>
+  <td class="mod-esp conn"><span class="wire-chip red wire-inline">Red</span><span class="pin">VIN</span></td>
+  <td class="mod-pms conn"><span class="wire-chip red wire-inline">Red</span><b>VCC</b></td>
+  <td class="mod-scd na">—</td>
+  <td class="mod-sgp na">—</td>
+  <td class="mod-b680 na">—</td>
+</tr>
+<tr>
+  <th scope="row">3</th>
+  <td class="meta net"><span class="pin">3V3</span></td>
+  <td class="mod-esp conn"><span class="wire-chip orange wire-inline">Orange</span><span class="pin">3V3</span></td>
+  <td class="mod-pms na">—</td>
+  <td class="mod-scd conn"><span class="wire-chip orange wire-inline">Orange</span><b>VCC</b></td>
+  <td class="mod-sgp conn"><span class="wire-chip orange wire-inline">Orange</span><b>3V3</b></td>
+  <td class="mod-b680 conn"><span class="wire-chip orange wire-inline">Orange</span><b>VCC</b></td>
+</tr>
+<tr>
+  <th scope="row">4</th>
+  <td class="meta net">I²C <span class="pin">SDA</span></td>
+  <td class="mod-esp conn"><span class="wire-chip yellow wire-inline">Yellow</span><span class="pin">D21</span></td>
+  <td class="mod-pms na">—</td>
+  <td class="mod-scd conn"><span class="wire-chip yellow wire-inline">Yellow</span><b>SDA</b></td>
+  <td class="mod-sgp conn"><span class="wire-chip yellow wire-inline">Yellow</span><b>SDA</b></td>
+  <td class="mod-b680 conn"><span class="wire-chip yellow wire-inline">Yellow</span><b>SDA</b></td>
+</tr>
+<tr>
+  <th scope="row">5</th>
+  <td class="meta net">I²C <span class="pin">SCL</span></td>
+  <td class="mod-esp conn"><span class="wire-chip brown wire-inline">Brown</span><span class="pin">D22</span></td>
+  <td class="mod-pms na">—</td>
+  <td class="mod-scd conn"><span class="wire-chip brown wire-inline">Brown</span><b>SCL</b></td>
+  <td class="mod-sgp conn"><span class="wire-chip brown wire-inline">Brown</span><b>SCL</b></td>
+  <td class="mod-b680 conn"><span class="wire-chip brown wire-inline">Brown</span><b>SCL</b></td>
+</tr>
+<tr>
+  <th scope="row">6</th>
+  <td class="meta net">UART PMS&nbsp;→ ESP</td>
+  <td class="mod-esp conn"><span class="wire-chip green wire-inline">Green</span><span class="pin">RX2 · 16</span></td>
+  <td class="mod-pms conn"><span class="wire-chip green wire-inline">Green</span><b>TXD</b></td>
+  <td class="mod-scd na">—</td>
+  <td class="mod-sgp na">—</td>
+  <td class="mod-b680 na">—</td>
+</tr>
+<tr>
+  <th scope="row">7</th>
+  <td class="meta net">UART ESP&nbsp;→ PMS</td>
+  <td class="mod-esp conn"><span class="wire-chip grey wire-inline">Grey</span><span class="pin">TX2 · 17</span></td>
+  <td class="mod-pms conn"><span class="wire-chip grey wire-inline">Grey</span><b>RXD</b></td>
+  <td class="mod-scd na">—</td>
+  <td class="mod-sgp na">—</td>
+  <td class="mod-b680 na">—</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+
+<div class="card">
+<h2>Cables — maximal air station</h2>
+<p class="lede">Three F–M parts per connection, all pluggable and no M–M anywhere: a <b>15&nbsp;cm stub</b> (male end soldered into the stripboard row, female socket up), a <b>30&nbsp;cm riser</b> (its male end into the stub's socket, female socket up), and a <b>10&nbsp;cm sensor tail</b> (its male end into the riser's socket, its female onto the sensor's male pin). The ESP32 skips riser and tail — its stub's female goes straight onto the DevKit's pins.</p>
+<table class="cables">
+<tr class="shop-group"><td colspan="2">ESP32</td></tr>
+<tr class="shop-subgroup"><td colspan="2">15&nbsp;cm · F–M · perfboard stub (M soldered into the row, F straight onto the ESP32 pins)</td></tr>
+<tr><td colspan="2" class="wire-col"><div class="wire-list">
+  <span class="wire-chip blue wire-inline">Blue</span>
+  <span class="wire-chip red wire-inline">Red</span>
+  <span class="wire-chip orange wire-inline">Orange</span>
+  <span class="wire-chip yellow wire-inline">Yellow</span>
+  <span class="wire-chip brown wire-inline">Brown</span>
+  <span class="wire-chip green wire-inline">Green</span>
+  <span class="wire-chip grey wire-inline">Grey</span>
+</div></td></tr>
+
+<tr class="shop-group"><td colspan="2">PMS7003</td></tr>
+<tr class="shop-subgroup"><td colspan="2">15&nbsp;cm · F–M · perfboard stub (M soldered into the row)</td></tr>
+<tr><td colspan="2" class="wire-col"><div class="wire-list">
+  <span class="wire-chip blue wire-inline">Blue</span>
+  <span class="wire-chip red wire-inline">Red</span>
+  <span class="wire-chip green wire-inline">Green</span>
+  <span class="wire-chip grey wire-inline">Grey</span>
+</div></td></tr>
+<tr class="shop-subgroup"><td colspan="2">30&nbsp;cm · F–M · riser (M into the stub's female)</td></tr>
+<tr><td colspan="2" class="wire-col"><div class="wire-list">
+  <span class="wire-chip blue wire-inline">Blue</span>
+  <span class="wire-chip red wire-inline">Red</span>
+  <span class="wire-chip green wire-inline">Green</span>
+  <span class="wire-chip grey wire-inline">Grey</span>
+</div></td></tr>
+<tr class="shop-subgroup"><td colspan="2">10&nbsp;cm · F–M · sensor tail (F on the sensor pin)</td></tr>
+<tr><td colspan="2" class="wire-col"><div class="wire-list">
+  <span class="wire-chip blue wire-inline">Blue</span>
+  <span class="wire-chip red wire-inline">Red</span>
+  <span class="wire-chip green wire-inline">Green</span>
+  <span class="wire-chip grey wire-inline">Grey</span>
+</div></td></tr>
+<tr class="shop-group"><td colspan="2">SCD41</td></tr>
+<tr class="shop-subgroup"><td colspan="2">15&nbsp;cm · F–M · perfboard stub (M soldered into the row)</td></tr>
+<tr><td colspan="2" class="wire-col"><div class="wire-list">
+  <span class="wire-chip blue wire-inline">Blue</span>
+  <span class="wire-chip orange wire-inline">Orange</span>
+  <span class="wire-chip yellow wire-inline">Yellow</span>
+  <span class="wire-chip brown wire-inline">Brown</span>
+</div></td></tr>
+<tr class="shop-subgroup"><td colspan="2">30&nbsp;cm · F–M · riser (M into the stub's female)</td></tr>
+<tr><td colspan="2" class="wire-col"><div class="wire-list">
+  <span class="wire-chip blue wire-inline">Blue</span>
+  <span class="wire-chip orange wire-inline">Orange</span>
+  <span class="wire-chip yellow wire-inline">Yellow</span>
+  <span class="wire-chip brown wire-inline">Brown</span>
+</div></td></tr>
+<tr class="shop-subgroup"><td colspan="2">10&nbsp;cm · F–M · sensor tail (F on the sensor pin)</td></tr>
+<tr><td colspan="2" class="wire-col"><div class="wire-list">
+  <span class="wire-chip blue wire-inline">Blue</span>
+  <span class="wire-chip orange wire-inline">Orange</span>
+  <span class="wire-chip yellow wire-inline">Yellow</span>
+  <span class="wire-chip brown wire-inline">Brown</span>
+</div></td></tr>
+<tr class="shop-group"><td colspan="2">SGP41</td></tr>
+<tr class="shop-subgroup"><td colspan="2">15&nbsp;cm · F–M · perfboard stub (M soldered into the row)</td></tr>
+<tr><td colspan="2" class="wire-col"><div class="wire-list">
+  <span class="wire-chip blue wire-inline">Blue</span>
+  <span class="wire-chip orange wire-inline">Orange</span>
+  <span class="wire-chip yellow wire-inline">Yellow</span>
+  <span class="wire-chip brown wire-inline">Brown</span>
+</div></td></tr>
+<tr class="shop-subgroup"><td colspan="2">30&nbsp;cm · F–M · riser (M into the stub's female)</td></tr>
+<tr><td colspan="2" class="wire-col"><div class="wire-list">
+  <span class="wire-chip blue wire-inline">Blue</span>
+  <span class="wire-chip orange wire-inline">Orange</span>
+  <span class="wire-chip yellow wire-inline">Yellow</span>
+  <span class="wire-chip brown wire-inline">Brown</span>
+</div></td></tr>
+<tr class="shop-subgroup"><td colspan="2">10&nbsp;cm · F–M · sensor tail (F on the sensor pin)</td></tr>
+<tr><td colspan="2" class="wire-col"><div class="wire-list">
+  <span class="wire-chip blue wire-inline">Blue</span>
+  <span class="wire-chip orange wire-inline">Orange</span>
+  <span class="wire-chip yellow wire-inline">Yellow</span>
+  <span class="wire-chip brown wire-inline">Brown</span>
+</div></td></tr>
+<tr class="shop-group"><td colspan="2">BME680</td></tr>
+<tr class="shop-subgroup"><td colspan="2">15&nbsp;cm · F–M · perfboard stub (M soldered into the row)</td></tr>
+<tr><td colspan="2" class="wire-col"><div class="wire-list">
+  <span class="wire-chip blue wire-inline">Blue</span>
+  <span class="wire-chip orange wire-inline">Orange</span>
+  <span class="wire-chip yellow wire-inline">Yellow</span>
+  <span class="wire-chip brown wire-inline">Brown</span>
+</div></td></tr>
+<tr class="shop-subgroup"><td colspan="2">30&nbsp;cm · F–M · riser (M into the stub's female)</td></tr>
+<tr><td colspan="2" class="wire-col"><div class="wire-list">
+  <span class="wire-chip blue wire-inline">Blue</span>
+  <span class="wire-chip orange wire-inline">Orange</span>
+  <span class="wire-chip yellow wire-inline">Yellow</span>
+  <span class="wire-chip brown wire-inline">Brown</span>
+</div></td></tr>
+<tr class="shop-subgroup"><td colspan="2">10&nbsp;cm · F–M · sensor tail (F on the sensor pin)</td></tr>
+<tr><td colspan="2" class="wire-col"><div class="wire-list">
+  <span class="wire-chip blue wire-inline">Blue</span>
+  <span class="wire-chip orange wire-inline">Orange</span>
+  <span class="wire-chip yellow wire-inline">Yellow</span>
+  <span class="wire-chip brown wire-inline">Brown</span>
+</div></td></tr>
+<tr><td colspan="2" style="font-weight:700;padding-top:10px"><b>55</b> wires for the maximal air station (23 stubs + 16 risers + 16 tails)</td></tr>
+</table>
+
+</div>
+
+
+<div class="card">
+<h2>Shopping list — both air stations combined</h2>
+<p class="lede">Every cable is F–M; colours are per net and follow the wire through all three tiers. Total per colour, then the split between the two stations (aq8 = minimal, aq9 = maximal).</p>
+<table class="cables">
+<tr class="shop-subgroup"><td colspan="2">15&nbsp;cm · F–M · perfboard stubs</td></tr>
+<tr><th class="qty-col">Qty</th><th>Wire</th></tr>
+<tr><td class="qty-col">9</td><td class="wire-col"><span class="wire-chip blue wire-inline">Blue</span><span class="count-chip">aq8 <b>4</b></span><span class="count-chip">aq9 <b>5</b></span></td></tr>
+<tr><td class="qty-col">6</td><td class="wire-col"><span class="wire-chip red wire-inline">Red</span><span class="count-chip">aq8 <b>4</b></span><span class="count-chip">aq9 <b>2</b></span></td></tr>
+<tr><td class="qty-col">4</td><td class="wire-col"><span class="wire-chip orange wire-inline">Orange</span><span class="count-chip">aq9 <b>4</b></span></td></tr>
+<tr><td class="qty-col">6</td><td class="wire-col"><span class="wire-chip yellow wire-inline">Yellow</span><span class="count-chip">aq8 <b>2</b></span><span class="count-chip">aq9 <b>4</b></span></td></tr>
+<tr><td class="qty-col">6</td><td class="wire-col"><span class="wire-chip brown wire-inline">Brown</span><span class="count-chip">aq8 <b>2</b></span><span class="count-chip">aq9 <b>4</b></span></td></tr>
+<tr><td class="qty-col">4</td><td class="wire-col"><span class="wire-chip green wire-inline">Green</span><span class="count-chip">aq8 <b>2</b></span><span class="count-chip">aq9 <b>2</b></span></td></tr>
+<tr><td class="qty-col">4</td><td class="wire-col"><span class="wire-chip grey wire-inline">Grey</span><span class="count-chip">aq8 <b>2</b></span><span class="count-chip">aq9 <b>2</b></span></td></tr>
+<tr class="shop-subgroup"><td colspan="2">30&nbsp;cm · F–M · risers</td></tr>
+<tr><th class="qty-col">Qty</th><th>Wire</th></tr>
+<tr><td class="qty-col">7</td><td class="wire-col"><span class="wire-chip blue wire-inline">Blue</span><span class="count-chip">aq8 <b>3</b></span><span class="count-chip">aq9 <b>4</b></span></td></tr>
+<tr><td class="qty-col">4</td><td class="wire-col"><span class="wire-chip red wire-inline">Red</span><span class="count-chip">aq8 <b>3</b></span><span class="count-chip">aq9 <b>1</b></span></td></tr>
+<tr><td class="qty-col">3</td><td class="wire-col"><span class="wire-chip orange wire-inline">Orange</span><span class="count-chip">aq9 <b>3</b></span></td></tr>
+<tr><td class="qty-col">4</td><td class="wire-col"><span class="wire-chip yellow wire-inline">Yellow</span><span class="count-chip">aq8 <b>1</b></span><span class="count-chip">aq9 <b>3</b></span></td></tr>
+<tr><td class="qty-col">4</td><td class="wire-col"><span class="wire-chip brown wire-inline">Brown</span><span class="count-chip">aq8 <b>1</b></span><span class="count-chip">aq9 <b>3</b></span></td></tr>
+<tr><td class="qty-col">2</td><td class="wire-col"><span class="wire-chip green wire-inline">Green</span><span class="count-chip">aq8 <b>1</b></span><span class="count-chip">aq9 <b>1</b></span></td></tr>
+<tr><td class="qty-col">2</td><td class="wire-col"><span class="wire-chip grey wire-inline">Grey</span><span class="count-chip">aq8 <b>1</b></span><span class="count-chip">aq9 <b>1</b></span></td></tr>
+<tr class="shop-subgroup"><td colspan="2">10&nbsp;cm · F–M · sensor tails</td></tr>
+<tr><th class="qty-col">Qty</th><th>Wire</th></tr>
+<tr><td class="qty-col">7</td><td class="wire-col"><span class="wire-chip blue wire-inline">Blue</span><span class="count-chip">aq8 <b>3</b></span><span class="count-chip">aq9 <b>4</b></span></td></tr>
+<tr><td class="qty-col">4</td><td class="wire-col"><span class="wire-chip red wire-inline">Red</span><span class="count-chip">aq8 <b>3</b></span><span class="count-chip">aq9 <b>1</b></span></td></tr>
+<tr><td class="qty-col">3</td><td class="wire-col"><span class="wire-chip orange wire-inline">Orange</span><span class="count-chip">aq9 <b>3</b></span></td></tr>
+<tr><td class="qty-col">4</td><td class="wire-col"><span class="wire-chip yellow wire-inline">Yellow</span><span class="count-chip">aq8 <b>1</b></span><span class="count-chip">aq9 <b>3</b></span></td></tr>
+<tr><td class="qty-col">4</td><td class="wire-col"><span class="wire-chip brown wire-inline">Brown</span><span class="count-chip">aq8 <b>1</b></span><span class="count-chip">aq9 <b>3</b></span></td></tr>
+<tr><td class="qty-col">2</td><td class="wire-col"><span class="wire-chip green wire-inline">Green</span><span class="count-chip">aq8 <b>1</b></span><span class="count-chip">aq9 <b>1</b></span></td></tr>
+<tr><td class="qty-col">2</td><td class="wire-col"><span class="wire-chip grey wire-inline">Grey</span><span class="count-chip">aq8 <b>1</b></span><span class="count-chip">aq9 <b>1</b></span></td></tr>
+<tr><td colspan="2" style="font-weight:700;padding-top:10px"><b>91</b> wires total &mdash; 39&nbsp;×&nbsp;15&nbsp;cm + 26&nbsp;×&nbsp;30&nbsp;cm + 26&nbsp;×&nbsp;10&nbsp;cm (36 aq8 + 55 aq9)</td></tr>
+</table>
+</div>
+
+</div>
+</body>
+</html>

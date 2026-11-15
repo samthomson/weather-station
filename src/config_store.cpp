@@ -103,6 +103,11 @@ void begin(const WxConfig& defaults) {
   g_cfg.en_bh1750             = loadBool("en_bh",      defaults.en_bh1750);
   g_cfg.en_rain               = loadBool("en_rain",    defaults.en_rain);
   g_cfg.en_pms                = loadBool("en_pms",     defaults.en_pms);
+  g_cfg.en_bme680             = loadBool("en_b680",    defaults.en_bme680);
+  g_cfg.en_scd41              = loadBool("en_scd41",   defaults.en_scd41);
+  g_cfg.en_sgp41              = loadBool("en_sgp41",   defaults.en_sgp41);
+  g_cfg.en_mq135              = loadBool("en_mq135",   defaults.en_mq135);
+  g_cfg.en_mq7                = loadBool("en_mq7",     defaults.en_mq7);
   g_cfg.pms_model             = loadStr("pms_model",   defaults.pms_model);
 
   // Guarantee a usable Nostr key after every boot.
@@ -128,6 +133,11 @@ bool save() {
   prefs.putBool("en_bh",         g_cfg.en_bh1750);
   prefs.putBool("en_rain",       g_cfg.en_rain);
   prefs.putBool("en_pms",        g_cfg.en_pms);
+  prefs.putBool("en_b680",       g_cfg.en_bme680);
+  prefs.putBool("en_scd41",      g_cfg.en_scd41);
+  prefs.putBool("en_sgp41",      g_cfg.en_sgp41);
+  prefs.putBool("en_mq135",      g_cfg.en_mq135);
+  prefs.putBool("en_mq7",        g_cfg.en_mq7);
   prefs.putString("pms_model",   g_cfg.pms_model);
   return true;
 }

@@ -38,6 +38,17 @@
 #if ENABLE_SDS011
   #include <SdsDustSensor.h>
 #endif
+#if ENABLE_SCD41
+  #include <SensirionI2cScd4x.h>
+#endif
+#if ENABLE_SGP41
+  #include <SensirionI2CSgp41.h>
+  #include <VOCGasIndexAlgorithm.h>
+  #include <NOxGasIndexAlgorithm.h>
+#endif
+#if ENABLE_BME680
+  #include <Adafruit_BME680.h>
+#endif
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include <WebSocketsClient.h>
@@ -112,11 +123,23 @@ const char* MODEL_SDS011 = "SDS011";
 const char* MODEL_MQ135 = "MQ-135";
 const char* MODEL_BH1750 = "BH1750";
 const char* MODEL_MHRD = "MH-RD";
+const char* MODEL_SCD41 = "SCD41";
+const char* MODEL_SGP41 = "SGP41";
+const char* MODEL_BME680 = "BME680";
+const char* MODEL_MQ7 = "MQ-7";
 
 // Nostr tag names for additional sensors
 const char* TAG_PRESSURE = "pressure";
 const char* TAG_LIGHT = "light";
 const char* TAG_RAIN = "rain";
+// Air-quality sensor tags. co2/gas/carbon_monoxide match the draft NIP
+// sensor-type table (PR 2163); voc_index/nox_index are new — SGP41 outputs
+// unitless 1-500 indexes (100 / 1 = average), to be proposed in the NIP.
+const char* TAG_CO2 = "co2";
+const char* TAG_GAS = "gas";
+const char* TAG_CARBON_MONOXIDE = "carbon_monoxide";
+const char* TAG_VOC_INDEX = "voc_index";
+const char* TAG_NOX_INDEX = "nox_index";
 
 // Sensor types available on this station (for metadata)
 struct SensorInfo {
@@ -160,6 +183,22 @@ const SensorInfo sensors[] = {
   #endif
   #if ENABLE_MQ
     {TAG_AIR_QUALITY, MODEL_MQ135},
+  #endif
+  #if ENABLE_MQ7
+    {TAG_CARBON_MONOXIDE, MODEL_MQ7},
+  #endif
+  #if ENABLE_SCD41
+    {TAG_CO2, MODEL_SCD41},
+  #endif
+  #if ENABLE_SGP41
+    {TAG_VOC_INDEX, MODEL_SGP41},
+    {TAG_NOX_INDEX, MODEL_SGP41},
+  #endif
+  #if ENABLE_BME680
+    {TAG_TEMP, MODEL_BME680},
+    {TAG_HUMIDITY, MODEL_BME680},
+    {TAG_PRESSURE, MODEL_BME680},
+    {TAG_GAS, MODEL_BME680},
   #endif
 };
 
@@ -231,6 +270,39 @@ unsigned int rainValue = 0; // rain sensor (0-4095 on ESP32, 0-1023 on ESP8266)
   #define MQ_PIN A0  // A0 on ESP8266
 #endif
 unsigned int airQuality = 0;
+#if ENABLE_MQ7
+  // Second MQ channel (carbon monoxide) needs its own ADC pin.
+  #ifdef ESP32
+    #define MQ7_PIN 35  // GPIO35 (ADC1_CH7) on ESP32
+  #else
+    #define MQ7_PIN A0   // ESP8266: shared with MQ-135 (not meaningful)
+  #endif
+  unsigned int carbonMonoxide = 0;
+#endif
+#if ENABLE_SCD41
+  SensirionI2cScd4x scd41;
+  bool scd41Available = false;
+  bool scd41HasReading = false;
+  uint16_t co2 = 0;       // ppm
+  float scd41Temp = NAN;  // kept for SGP41 compensation
+  float scd41Rh = NAN;
+#endif
+#if ENABLE_SGP41
+  SensirionI2CSgp41 sgp41;
+  VOCGasIndexAlgorithm vocAlgorithm;
+  NOxGasIndexAlgorithm noxAlgorithm;
+  bool sgp41Available = false;
+  bool sgp41VocValid = false;  // first processed VOC sample seen
+  bool sgp41NoxValid = false;  // first post-conditioning NOx sample seen
+  int vocIndex = 0, noxIndex = 0;
+  uint8_t sgp41ConditioningLeft = 0;  // NOx hotplate conditioning (10 s max)
+#endif
+#if ENABLE_BME680
+  Adafruit_BME680 bme680;
+  bool bme680Available = false;
+  bool bme680HasReading = false;
+  uint32_t gasResistance = 0;  // ohm
+#endif
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
@@ -291,6 +363,18 @@ static void rainUpdateConnectedLatch(unsigned avg, unsigned spread) {
 }
 #endif
 void mqReadData();
+#if ENABLE_MQ7
+void mq7ReadData();
+#endif
+#if ENABLE_SCD41
+void scd41ReadData();
+#endif
+#if ENABLE_SGP41
+void sgp41Tick();
+#endif
+#if ENABLE_BME680
+void bme680Data();
+#endif
 void displayOled();
 void derivePubkey();
 String bytesToHex(uint8_t* bytes, int len);
@@ -353,9 +437,13 @@ static bool bh1750Valid() {
   return bh1750Available && !isnan((double)lux) && lux >= 0.0f;
 }
 #endif
+#if ENABLE_SCD41
+static bool scd41Valid() { return scd41HasReading; }
+#endif
 
-// BME280 (temp+humidity+pressure) vs BMP280 (temp+pressure only) — one helper, two model names
-#if ENABLE_BME280
+// BME280 (temp+humidity+pressure) vs BMP280 (temp+pressure only) — one helper, two model names.
+// Also used by the BME680 (same temp/humidity/pressure reading shape).
+#if ENABLE_BME280 || ENABLE_BME680
 static void appendPressureSensorReadingTags(String& dest, const char* model, bool includeHumidity) {
   appendReadingTag(dest, TAG_TEMP, model, t);
   if (includeHumidity) appendReadingTag(dest, TAG_HUMIDITY, model, h);
@@ -488,6 +576,39 @@ static int RNG(uint8_t *dest, unsigned size) {
   return 1;
 }
 
+// --- Sensor start helpers (setup() + dashboard runtime re-init) ---
+#if ENABLE_SCD41
+static bool startScd41() {
+  scd41.begin(Wire, SCD41_I2C_ADDR_62);
+  scd41.wakeUp();                   // no-op unless previously asleep
+  scd41.stopPeriodicMeasurement();  // clear state from a warm reset
+  delay(10);
+  if (scd41.startPeriodicMeasurement() != 0) return false;  // 5 s interval, ASC on
+  scd41Available = true;
+  return true;
+}
+#endif
+#if ENABLE_SGP41
+static bool startSgp41() {
+  sgp41.begin(Wire);
+  uint16_t serial[3];
+  if (sgp41.getSerialNumber(serial) != 0) return false;  // presence probe
+  sgp41ConditioningLeft = 10;  // datasheet: 10 s of conditioning, never more
+  sgp41Available = true;
+  return true;
+}
+#endif
+#if ENABLE_BME680
+static bool startBme680() {
+  if (!bme680.begin(0x76) && !bme680.begin(0x77)) return false;
+  bme680.setTemperatureOversampling(BME680_OS_2X);
+  bme680.setHumidityOversampling(BME680_OS_1X);
+  bme680.setPressureOversampling(BME680_OS_16X);
+  bme680.setGasHeater(320, 150);  // 320 °C for 150 ms
+  bme680Available = true;
+  return true;
+}
+#endif
 void setup() {
   Serial.begin(115200);
   delay(1000);
@@ -537,7 +658,7 @@ void setup() {
   #endif
   
   // Initialize I2C bus for any I2C sensors or OLED
-  #if ENABLE_BME280 || ENABLE_BH1750 || ENABLE_SPS30 || ENABLE_OLED
+  #if ENABLE_BME280 || ENABLE_BH1750 || ENABLE_SPS30 || ENABLE_SCD41 || ENABLE_SGP41 || ENABLE_BME680 || ENABLE_OLED
     #ifdef ESP32
       Wire.begin(21, 22);  // Explicit SDA/SCL pins on ESP32
     #else
@@ -607,6 +728,42 @@ void setup() {
     }
   #else
     Serial.println("BH1750 sensor disabled (compile-time)");
+  #endif
+
+  // Initialize SCD41 CO2 sensor (compiled in + user-enabled)
+  #if ENABLE_SCD41
+    if (cfg.en_scd41) {
+      if (startScd41()) Serial.println("SCD41 enabled (I2C 0x62); first reading in ~5s");
+      else Serial.println("SCD41 not found - continuing without it");
+    } else {
+      Serial.println("SCD41 sensor disabled (runtime)");
+    }
+  #else
+    Serial.println("SCD41 sensor disabled (compile-time)");
+  #endif
+
+  // Initialize SGP41 VOC/NOx sensor (compiled in + user-enabled)
+  #if ENABLE_SGP41
+    if (cfg.en_sgp41) {
+      if (startSgp41()) Serial.println("SGP41 enabled (I2C 0x59); 10s NOx conditioning");
+      else Serial.println("SGP41 not found - continuing without it");
+    } else {
+      Serial.println("SGP41 sensor disabled (runtime)");
+    }
+  #else
+    Serial.println("SGP41 sensor disabled (compile-time)");
+  #endif
+
+  // Initialize BME680 (compiled in + user-enabled)
+  #if ENABLE_BME680
+    if (cfg.en_bme680) {
+      if (startBme680()) Serial.println("BME680 enabled");
+      else Serial.println("BME680 not found - continuing without it");
+    } else {
+      Serial.println("BME680 sensor disabled (runtime)");
+    }
+  #else
+    Serial.println("BME680 sensor disabled (compile-time)");
   #endif
 
   // Initialize rain sensor (compiled in + user-enabled)
@@ -725,13 +882,32 @@ void loop() {
       if (cfg.en_rain) rainData();
     #endif
     #if ENABLE_MQ
-      mqReadData();
+      if (cfg.en_mq135) mqReadData();
+    #endif
+    #if ENABLE_MQ7
+      if (cfg.en_mq7) mq7ReadData();
+    #endif
+    #if ENABLE_SCD41
+      if (cfg.en_scd41) scd41ReadData();
+    #endif
+    #if ENABLE_BME680
+      if (cfg.en_bme680) bme680Data();
     #endif
     #if ENABLE_OLED
       displayOled();
     #endif
     lastSensor = now;
   }
+
+  // SGP41 + gas index algorithm run at exactly 1 Hz (algorithm assumption),
+  // decoupled from the 2 s sensor tick above.
+  #if ENABLE_SGP41
+    static unsigned long lastSgp41 = 0;
+    if (cfg.en_sgp41 && millis() - lastSgp41 >= 1000) {
+      sgp41Tick();
+      lastSgp41 = millis();
+    }
+  #endif
 
   if (now - lastStatus > 1000) {
     publishDashboardStatus();
@@ -994,6 +1170,97 @@ void mqReadData() {
   Serial.print("Air Quality: "); Serial.println(airQuality);
 }
 
+#if ENABLE_MQ7
+void mq7ReadData() {
+  carbonMonoxide = analogRead(MQ7_PIN);
+  Serial.print("CO (MQ-7): "); Serial.println(carbonMonoxide);
+}
+#endif
+
+#if ENABLE_SCD41
+void scd41ReadData() {
+  if (!scd41Available) return;
+  bool ready = false;
+  // SCD41 produces a new value every 5 s; skip ticks in between.
+  if (scd41.getDataReadyStatus(ready) != 0 || !ready) return;
+  uint16_t co2Raw = 0;
+  float tempC = 0, rh = 0;
+  if (scd41.readMeasurement(co2Raw, tempC, rh) != 0) return;
+  scd41Temp = tempC;  // kept for SGP41 humidity/temperature compensation
+  scd41Rh = rh;
+  // 400 ppm = fresh-air floor; above ~20000 ppm the reading is corrupt.
+  if (co2Raw >= 400 && co2Raw <= 20000) {
+    co2 = co2Raw;
+    scd41HasReading = true;
+    Serial.print("SCD41 CO2:"); Serial.print(co2);
+    Serial.print("ppm T:"); Serial.print(tempC, 1);
+    Serial.print("C RH:"); Serial.print(rh, 1); Serial.println("%");
+  }
+}
+#endif
+
+#if ENABLE_SGP41
+// Must run at 1 Hz: the Sensirion gas index algorithm assumes 1 s samples.
+void sgp41Tick() {
+  if (!sgp41Available) return;
+  // Compensate with the co-located enviro sensor if one is valid, else the
+  // Sensirion defaults (25 C, 50 %RH).
+  float tComp = 25.0f, rhComp = 50.0f;
+  bool haveComp = false;
+  #if ENABLE_SCD41
+    if (scd41HasReading) { tComp = scd41Temp; rhComp = scd41Rh; haveComp = true; }
+  #endif
+  #if ENABLE_BME680
+    if (!haveComp && bme680HasReading) { tComp = t; rhComp = h; haveComp = true; }
+  #endif
+  #if ENABLE_BME280
+    if (!haveComp && bmeAvailable && bmeHasReading) { tComp = t; rhComp = h; }
+  #endif
+  uint16_t tTicks = (uint16_t)((tComp + 45.0f) * 65535.0f / 175.0f);
+  uint16_t rhTicks = (uint16_t)(rhComp * 65535.0f / 100.0f);
+  uint16_t srawVoc = 0, srawNox = 0;
+  if (sgp41ConditioningLeft > 0) {
+    // NOx hotplate conditioning: exactly 10 s, never longer (datasheet).
+    if (sgp41.executeConditioning(rhTicks, tTicks, srawVoc) == 0) {
+      vocIndex = vocAlgorithm.process(srawVoc);
+      sgp41VocValid = true;
+      sgp41ConditioningLeft--;
+    }
+    return;
+  }
+  if (sgp41.measureRawSignals(rhTicks, tTicks, srawVoc, srawNox) == 0) {
+    vocIndex = vocAlgorithm.process(srawVoc);
+    noxIndex = noxAlgorithm.process(srawNox);
+    sgp41VocValid = true;
+    sgp41NoxValid = true;
+    Serial.print("SGP41 VOC:"); Serial.print(vocIndex);
+    Serial.print(" NOx:"); Serial.println(noxIndex);
+  }
+}
+#endif
+
+#if ENABLE_BME680
+void bme680Data() {
+  if (!bme680Available) return;
+  // Blocks briefly (heater cycle ~150 ms); also starts the next measurement.
+  if (!bme680.performReading()) return;
+  float nt = bme680.temperature;
+  float nh = bme680.humidity;
+  float np = bme680.pressure / 100.0F;
+  uint32_t ng = bme680.gas_resistance;
+  // Datasheet ranges; ng == 0 means the gas heater never ran.
+  if (nt < -40.0f || nt > 85.0f || nh < 0.0f || nh > 100.0f ||
+      np < 260.0f || np > 1100.0f || ng == 0) return;
+  t = nt; h = nh; p = np;
+  gasResistance = ng;
+  bme680HasReading = true;
+  Serial.print("BME680 - T:"); Serial.print(t, 1);
+  Serial.print(" H:"); Serial.print(h, 1);
+  Serial.print(" P:"); Serial.print(p, 1);
+  Serial.print("hPa gas:"); Serial.print(ng / 1000.0f, 1); Serial.println("kOhm");
+}
+#endif
+
 void displayOled() {
   if (!displayAvailable) return;
   
@@ -1188,7 +1455,23 @@ String createAndSignNostrEvent(float temp, float humidity, unsigned int pm1_val,
     appendSds011ReadingTags(readingTags);
   #endif
   #if ENABLE_MQ
-    appendReadingTag(readingTags, TAG_AIR_QUALITY, MODEL_MQ135, aq_val);
+    if (cfg.en_mq135) appendReadingTag(readingTags, TAG_AIR_QUALITY, MODEL_MQ135, aq_val);
+  #endif
+  #if ENABLE_MQ7
+    if (cfg.en_mq7) appendReadingTag(readingTags, TAG_CARBON_MONOXIDE, MODEL_MQ7, carbonMonoxide);
+  #endif
+  #if ENABLE_SCD41
+    if (cfg.en_scd41 && scd41Valid()) appendReadingTag(readingTags, TAG_CO2, MODEL_SCD41, (unsigned int)co2);
+  #endif
+  #if ENABLE_SGP41
+    if (cfg.en_sgp41 && sgp41VocValid) appendReadingTag(readingTags, TAG_VOC_INDEX, MODEL_SGP41, (unsigned int)vocIndex);
+    if (cfg.en_sgp41 && sgp41NoxValid) appendReadingTag(readingTags, TAG_NOX_INDEX, MODEL_SGP41, (unsigned int)noxIndex);
+  #endif
+  #if ENABLE_BME680
+    if (cfg.en_bme680 && bme680HasReading) {
+      appendPressureSensorReadingTags(readingTags, MODEL_BME680, true);
+      appendReadingTag(readingTags, TAG_GAS, MODEL_BME680, (unsigned int)gasResistance);
+    }
   #endif
   
   readingTags += "]";
@@ -1279,7 +1562,33 @@ String createMetadataEvent() {
     appendSensorAndStatus(metadataTags, TAG_PM10, MODEL_SDS011, sds011Valid());
   #endif
   #if ENABLE_MQ
-    appendSensorAndStatus(metadataTags, TAG_AIR_QUALITY, MODEL_MQ135, true);
+    if (cfg.en_mq135) appendSensorAndStatus(metadataTags, TAG_AIR_QUALITY, MODEL_MQ135, true);
+  #endif
+  #if ENABLE_MQ7
+    if (cfg.en_mq7) appendSensorAndStatus(metadataTags, TAG_CARBON_MONOXIDE, MODEL_MQ7, true);
+  #endif
+  #if ENABLE_SCD41
+    if (cfg.en_scd41) appendSensorAndStatus(metadataTags, TAG_CO2, MODEL_SCD41, scd41Valid());
+  #endif
+  #if ENABLE_SGP41
+    if (cfg.en_sgp41) {
+      appendSensorAndStatus(metadataTags, TAG_VOC_INDEX, MODEL_SGP41, sgp41VocValid);
+      appendSensorAndStatus(metadataTags, TAG_NOX_INDEX, MODEL_SGP41, sgp41NoxValid);
+    }
+  #endif
+  #if ENABLE_BME680
+    if (cfg.en_bme680) {
+      if (bme680HasReading) {
+        appendSensorTag(metadataTags, TAG_TEMP, MODEL_BME680);
+        appendSensorTag(metadataTags, TAG_HUMIDITY, MODEL_BME680);
+        appendSensorTag(metadataTags, TAG_PRESSURE, MODEL_BME680);
+        appendSensorTag(metadataTags, TAG_GAS, MODEL_BME680);
+      }
+      appendSensorStatusTag(metadataTags, TAG_TEMP, MODEL_BME680, bme680HasReading);
+      appendSensorStatusTag(metadataTags, TAG_HUMIDITY, MODEL_BME680, bme680HasReading);
+      appendSensorStatusTag(metadataTags, TAG_PRESSURE, MODEL_BME680, bme680HasReading);
+      appendSensorStatusTag(metadataTags, TAG_GAS, MODEL_BME680, bme680HasReading);
+    }
   #endif
   
   metadataTags += "]";
@@ -1380,6 +1689,21 @@ static WxConfig buildFactoryDefaults() {
   #ifdef PMS_MODEL
     d.pms_model = PMS_MODEL;
   #endif
+  #if ENABLE_SCD41
+    d.en_scd41 = (bool)(ENABLE_SCD41);
+  #endif
+  #if ENABLE_SGP41
+    d.en_sgp41 = (bool)(ENABLE_SGP41);
+  #endif
+  #if ENABLE_BME680
+    d.en_bme680 = (bool)(ENABLE_BME680);
+  #endif
+  #if ENABLE_MQ
+    d.en_mq135 = (bool)(ENABLE_MQ);
+  #endif
+  #if ENABLE_MQ7
+    d.en_mq7 = (bool)(ENABLE_MQ7);
+  #endif
   return d;
 }
 
@@ -1427,6 +1751,22 @@ static void initRuntimeSensors() {
       rainSampleCount = 0;
       rainSpread = 999;
       rainValue = 0;
+    }
+  #endif
+  #if ENABLE_SCD41
+    if (cfg.en_scd41 && !scd41Available) {
+      if (startScd41()) Serial.println("[sensors] SCD41 init OK");
+    }
+  #endif
+  #if ENABLE_SGP41
+    if (cfg.en_sgp41 && !sgp41Available) {
+      if (startSgp41()) Serial.println("[sensors] SGP41 init OK");
+    }
+  #endif
+  #if ENABLE_BME680
+    if (cfg.en_bme680 && !bme680Available) {
+      if (startBme680()) Serial.println("[sensors] BME680 init OK");
+      else Serial.println("[sensors] BME680 still not found");
     }
   #endif
 }
@@ -1509,6 +1849,21 @@ static void publishDashboardStatus() {
       s.has_pm = true;
       s.pm1 = pm1; s.pm25 = pm2_5; s.pm10 = pm10;
     }
+  #endif
+  #if ENABLE_SCD41
+    if (cfg.en_scd41 && scd41Valid()) { s.has_co2 = true; s.co2_ppm = co2; }
+  #endif
+  #if ENABLE_SGP41
+    if (cfg.en_sgp41 && sgp41VocValid) { s.has_voc = true; s.voc_index = vocIndex; s.nox_index = noxIndex; }
+  #endif
+  #if ENABLE_BME680
+    if (cfg.en_bme680 && bme680HasReading) { s.has_gas = true; s.gas_res_ohm = gasResistance; }
+  #endif
+  #if ENABLE_MQ
+    if (cfg.en_mq135) s.mq135_raw = airQuality;
+  #endif
+  #if ENABLE_MQ7
+    if (cfg.en_mq7) s.mq7_raw = carbonMonoxide;
   #endif
 
   web_dashboard::updateStatus(s);

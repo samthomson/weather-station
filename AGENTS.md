@@ -1,5 +1,11 @@
 # Agent guidance — weather-station
 
+## Git discipline
+
+**Never run `git commit` or `git push` without explicit permission in the current conversation.** Leave changes uncommitted in the working tree for review. This includes chores (docs, registry updates) and "carry-over" work.
+
+**Be concise.** Answer each question in one sentence unless more is genuinely necessary — no preamble, no recaps, no unrequested advice.
+
 ## Flashing ESP32 boards
 
 **Always use PlatformIO commands. Never use `esptool.py` directly** — it is not on PATH and its bundled copy (`~/.platformio/packages/tool-esptoolpy/esptool.py`) has missing Python dependencies.
@@ -15,7 +21,9 @@ pio run -e esp32dev_mvpN -t upload
 pio device monitor -e esp32dev_mvpN
 ```
 
-Replace `N` with `1`–`5`.
+**Unplug the sensor 5V rail before flashing.** MQ heater boards (minimal air station) draw ~300 mA through the dev board's VIN; that sag corrupts USB-serial flashing (duplicate bytes, checksum errors, sync failures that look like a dead board). Disconnect power to the stripboard/sensors, flash, then reconnect.
+
+Env names: `esp32dev_mvp1`–`mvp7` (weather stations), `esp32dev_aq8` (minimal air station: PMS7003 + MQ-135 + MQ-7), `esp32dev_aq9` (maximal air station: PMS7003 + SCD41 + SGP41 + BME680).
 
 ## Confirm which board is connected before flashing
 

@@ -30,6 +30,11 @@ struct WxConfig {
   bool en_bh1750 = false;
   bool en_rain   = false;
   bool en_pms    = false;
+  bool en_bme680 = false;
+  bool en_scd41  = false;
+  bool en_sgp41  = false;
+  bool en_mq135  = false;
+  bool en_mq7    = false;
   String pms_model = "PMS5003";  // "PMS5003" or "PMS7003"
 };
 

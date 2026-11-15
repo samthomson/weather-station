@@ -7,7 +7,7 @@ Track which physical ESP32 is which station. Fill in a row after each flash.
 ```bash
 pio run -e esp32dev_mvp1 --target upload   # station 1
 pio run -e esp32dev_mvp2 --target upload   # station 2
-# … mvp3, mvp4, mvp5
+# … mvp3–mvp6 (weather), mvp7 (weather, Sam's), aq8 (minimal air station), aq9 (maximal air station)
 ```
 
 **After flash**, read from serial boot log or join the setup WiFi:
@@ -29,6 +29,10 @@ pio run -e esp32dev_mvp2 --target upload   # station 2
 | 3 | esp32dev_mvp3    | 19D3B8    | WeatherStation-19D3B8  | e4:65:b8:19:d3:b8  | 2026-05-24 | Fixed firmware flashed                     |
 | 4 | esp32dev_mvp4    | 3141C4    | WeatherStation-3141C4  |                    | 2026-05-24 |                                            |
 | 5 | esp32dev_mvp5    | 0BF6BC    | WeatherStation-0BF6BC  |                    | 2026-05-24 |                                            |
+| 6 | esp32dev_mvp6    | 65371C    | WeatherStation-65371C  | d4:e9:f4:65:37:1c  | 2026-11-13 | BMP280 (no humidity); needs real BME280     |
+| 7 | esp32dev_mvp7    |           |                        |                    |            | Standard MVP model (BME280, BH1750, MH-RD, PMS5003) — for Sam |
+| 8 | esp32dev_aq8     | 7030D0    | WeatherStation-7030D0  |                    | 2026-11-14 | Minimal air station: PMS7003 + MQ-135 + MQ-7 (raw, uncalibrated)      |
+| 9 | esp32dev_aq9     | 6FBC98    | WeatherStation-6FBC98  |                    | 2026-11-14 | Maximal air station: PMS7003 + SCD41 + SGP41 + BME680        |
 
 ---
 
@@ -41,3 +45,7 @@ pio run -e esp32dev_mvp2 --target upload   # station 2
 | 3 |              |                |                    |
 | 4 |              |                |                    |
 | 5 |              |                |                    |
+| 6 |              |                |                    |
+| 7 |              |                |                    |
+| 8 |              |                |                    |
+| 9 |              |                |                    |

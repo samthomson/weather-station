@@ -13,7 +13,11 @@ ESP8266 weather station that posts sensor data to Nostr via WebSocket with BIP-3
 **Sensors:**
 - DHT11 temp/humidity — also works: DHT22
 - PMS5003 particulate matter — reads PM1.0, PM2.5, PM10 | also works: PMS7003
-- MQ-135/MQ-7 air quality — uncalibrated gas detection 0-1023 | also works: MQ-2, other MQ series
+- MQ-135 air quality — uncalibrated gas detection, raw ADC (0-4095 on ESP32) | also works: MQ-2, other MQ series
+- MQ-7 carbon monoxide — uncalibrated raw ADC; second analog channel
+- SCD41 — real CO₂ (NDIR, ppm) + temp/humidity (I2C)
+- SGP41 — VOC + NOx index, unitless 1-500 (I2C, Sensirion gas index algorithm)
+- BME680 — temp/humidity/pressure + gas resistance (I2C)
 - SSD1306 OLED display (I2C) - optional
 
 ### MVP shopping list
@@ -37,6 +41,37 @@ Hookup wire or Dupont jumpers between the dev board and breakouts are assumed by
 **MVP ESP32 wiring:** PMS5003 serial RX→**GPIO16**, TX→**GPIO17**. BME280 and BH1750 share **I2C** (**GPIO21**=SDA, **GPIO22**=SCL). Rain sensor analog→**GPIO34**.
 
 Stripboard matrix + cable list: **[docs/mvp-assembly-guide.html](docs/mvp-assembly-guide.html)**. Flash & setup: below.
+
+### Air-quality station variants
+
+Same firmware as the MVP line — the `ENABLE_*` flags in the secrets file decide what compiles in; the dashboard toggles what runs.
+
+**Minimal air station** (`esp32dev_aq8`): PMS7003 + MQ-135 + MQ-7. Cheap; MQ values are uncalibrated raw ADC (0-4095) — relative trends only.
+
+| Qty | Part |
+|-----|------|
+| 1 | ESP32 dev board |
+| 1 | PMS7003 — PM1.0, PM2.5, PM10 |
+| 1 | MQ-135 breakout (air quality, analog) |
+| 1 | MQ-7 breakout (carbon monoxide, analog) |
+| 1 | USB cable + 5 V ≥ 2 A wall charger (two MQ heaters are power-hungry) |
+
+**Maximal air station** (`esp32dev_aq9`): PMS7003 + SCD41 + SGP41 + BME680. No per-unit calibration or burn-in.
+
+| Qty | Part |
+|-----|------|
+| 1 | ESP32 dev board |
+| 1 | PMS7003 — PM1.0, PM2.5, PM10 |
+| 1 | SCD41 — real CO₂ (NDIR) in ppm |
+| 1 | SGP41 — VOC + NOx index |
+| 1 | BME680 — temp/humidity/pressure + gas resistance |
+| 1 | USB cable + 5 V ≥ 1 A wall charger |
+
+**AQ ESP32 wiring:** PMS7003 serial RX→**GPIO16**, TX→**GPIO17** (5 V power). SCD41 (0x62), SGP41 (0x59) and BME680 (0x76/0x77) share **I2C** (**GPIO21**=SDA, **GPIO22**=SCL, 3.3 V power) — no address clashes, wire in parallel. MQ-135 analog→**GPIO36**, MQ-7 analog→**GPIO35** (5 V for the heaters; the analog out is ADC-safe).
+
+**Tags published:** `pm1`/`pm25`/`pm10`; `co2` (ppm, SCD41); `gas` (Ω, BME680); `carbon_monoxide` (raw, MQ-7); `air_quality` (raw, MQ-135); `voc_index`/`nox_index` (unitless 1-500, SGP41 — new sensor types, propose in [NIP PR 2163](https://github.com/nostr-protocol/nips/pull/2163)); `temp`/`humidity`/`pressure` (BME680).
+
+Stripboard matrix + cable list for both AQ stations: **[docs/aq-assembly-guide.html](docs/aq-assembly-guide.html)**. AQ wire colours: only **yellow** and **brown** are untouched by the MVP builds, so they carry the AQ-specific nets — MQ-135 analog yellow, MQ-7 brown (minimal); SDA yellow, SCL brown (maximal) — GND is blue (black stock is depleted), 5V red, 3V3 orange; the PMS UART pair keeps green/grey. Cable tiers: 15 cm stubs, 30 cm risers, 10 cm sensor tails — all F–M.
 
 ### MVP wire colours
 
@@ -195,12 +230,14 @@ Each tag: `[sensor_type, value, model]`
 
 ## Air quality station
 
-A future variant focused on indoor air quality. Goal: factory-calibrated, plug-and-trust — no per-unit calibration or burn-in. All sensors below are I²C (shared GPIO21 SDA / GPIO22 SCL), so they wire in parallel on one ESP32. MQ sensors are deliberately excluded — they need per-unit calibration and only give relative values.
+A variant line focused on indoor air quality, now built as the **minimal air station** (`esp32dev_aq8`: PMS7003 + MQ-135 + MQ-7) and the **maximal air station** (`esp32dev_aq9`: PMS7003 + SCD41 + SGP41 + BME680) — see "Air-quality station variants" above. The maximal variant keeps the original goal: factory-calibrated, plug-and-trust — no per-unit calibration or burn-in. The minimal variant deliberately trades that away (MQ sensors need per-unit calibration and only give relative values) in exchange for cost.
 
-- [ ] PMS5003 — PM1/2.5/10 in µg/m³ (already owned)
-- [ ] SCD41 — real CO₂ (NDIR) in ppm, plus temp + humidity
-- [ ] SGP41 — VOC + NOx index (relative; good for spotting change/spikes)
-- [ ] BME680 (optional) — IAQ gas resistance + temp/humidity/pressure
+- [x] PMS5003/PMS7003 — PM1/2.5/10 in µg/m³ (UART — the one non-I2C sensor)
+- [x] SCD41 — real CO₂ (NDIR) in ppm, plus temp + humidity
+- [x] SGP41 — VOC + NOx index (relative; good for spotting change/spikes)
+- [x] BME680 — gas resistance in Ω + temp/humidity/pressure
+- [x] MQ-135 + MQ-7 — raw uncalibrated analog (minimal variant only)
+- [ ] propose `voc_index` / `nox_index` sensor types in NIP PR 2163
 
 ### Possible future sensors
 
