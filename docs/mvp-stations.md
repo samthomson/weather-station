@@ -7,7 +7,7 @@ Track which physical ESP32 is which station. Fill in a row after each flash.
 ```bash
 pio run -e esp32dev_mvp1 --target upload   # station 1
 pio run -e esp32dev_mvp2 --target upload   # station 2
-# … mvp3–mvp6 (weather), mvp7 (weather, Sam's), aq8 (minimal air station), aq9 (maximal air station)
+# … mvp3–mvp6 (weather), mvp7 (weather, Sam's), aq8 (minimal air station), aq9 (maximal air station), plant10 (plant/soil station)
 ```
 
 **After flash**, read from serial boot log or join the setup WiFi:
@@ -33,6 +33,7 @@ pio run -e esp32dev_mvp2 --target upload   # station 2
 | 7 | esp32dev_mvp7    |           |                        |                    |            | Standard MVP model (BME280, BH1750, MH-RD, PMS5003) — for Sam |
 | 8 | esp32dev_aq8     | 7030D0    | WeatherStation-7030D0  |                    | 2026-11-14 | Minimal air station: PMS7003 + MQ-135 + MQ-7 (raw, uncalibrated)      |
 | 9 | esp32dev_aq9     | 6FBC98    | WeatherStation-6FBC98  |                    | 2026-11-14 | Maximal air station: PMS7003 + SCD41 + SGP41 + BME680        |
+| 10 | esp32dev_plant10 | 7D3BEC    | WeatherStation-7D3BEC  |                    | 2026-11-19 | Plant station: 3x soil probes (HW-080 w/ D25 switched excitation, CAPACITIVE-V1.2, SOIL-METAL-1M) · guide: docs/plant-assembly-guide.html · reflash 2026-11-19 wiped NVS → new Nostr key (old b9977e61… orphaned) |
 
 ---
 
@@ -49,3 +50,4 @@ pio run -e esp32dev_mvp2 --target upload   # station 2
 | 7 |              |                |                    |
 | 8 |              |                |                    |
 | 9 |              |                |                    |
+| 10 |              |                |                    |

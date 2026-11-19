@@ -23,7 +23,7 @@ pio device monitor -e esp32dev_mvpN
 
 **Unplug the sensor 5V rail before flashing.** MQ heater boards (minimal air station) draw ~300 mA through the dev board's VIN; that sag corrupts USB-serial flashing (duplicate bytes, checksum errors, sync failures that look like a dead board). Disconnect power to the stripboard/sensors, flash, then reconnect.
 
-Env names: `esp32dev_mvp1`–`mvp7` (weather stations), `esp32dev_aq8` (minimal air station: PMS7003 + MQ-135 + MQ-7), `esp32dev_aq9` (maximal air station: PMS7003 + SCD41 + SGP41 + BME680).
+Env names: `esp32dev_mvp1`–`mvp7` (weather stations), `esp32dev_aq8` (minimal air station: PMS7003 + MQ-135 + MQ-7), `esp32dev_aq9` (maximal air station: PMS7003 + SCD41 + SGP41 + BME680), `esp32dev_plant10` (plant station: 3x analog soil moisture probes).
 
 ## Confirm which board is connected before flashing
 

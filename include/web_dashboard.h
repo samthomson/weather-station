@@ -30,6 +30,9 @@ struct DashboardStatus {
   uint32_t gas_res_ohm = 0;      // BME680 heater resistance
   unsigned int mq135_raw = 0;    // MQ-135 raw ADC (0-4095)
   unsigned int mq7_raw = 0;      // MQ-7 raw ADC (0-4095)
+  unsigned int soil_a_raw = 0;  // Soil A raw ADC (0-4095)
+  unsigned int soil_b_raw = 0;  // Soil B raw ADC (0-4095)
+  unsigned int soil_c_raw = 0;  // Soil C raw ADC (0-4095)
   bool   has_temp = false;
   bool   has_humidity = false;
   bool   has_pressure = false;

@@ -140,6 +140,7 @@ const char* TAG_GAS = "gas";
 const char* TAG_CARBON_MONOXIDE = "carbon_monoxide";
 const char* TAG_VOC_INDEX = "voc_index";
 const char* TAG_NOX_INDEX = "nox_index";
+const char* TAG_SOIL_MOISTURE = "soil_moisture";
 
 // Sensor types available on this station (for metadata)
 struct SensorInfo {
@@ -151,6 +152,10 @@ struct SensorInfo {
 // Validate that required models are defined if sensors are enabled
 #if ENABLE_PMS && !defined(PMS_MODEL)
   #error "PMS_MODEL must be defined in secrets file when ENABLE_PMS is true"
+#endif
+// Soil channels need per-channel default model labels (runtime-editable).
+#if ENABLE_SOIL && !(defined(SOIL_A_MODEL) && defined(SOIL_B_MODEL) && defined(SOIL_C_MODEL))
+  #error "SOIL_A_MODEL / SOIL_B_MODEL / SOIL_C_MODEL must be defined in secrets file when ENABLE_SOIL is true"
 #endif
 
 const SensorInfo sensors[] = {
@@ -199,6 +204,11 @@ const SensorInfo sensors[] = {
     {TAG_HUMIDITY, MODEL_BME680},
     {TAG_PRESSURE, MODEL_BME680},
     {TAG_GAS, MODEL_BME680},
+  #endif
+  #if ENABLE_SOIL
+    {TAG_SOIL_MOISTURE, SOIL_A_MODEL},
+    {TAG_SOIL_MOISTURE, SOIL_B_MODEL},
+    {TAG_SOIL_MOISTURE, SOIL_C_MODEL},
   #endif
 };
 
@@ -278,6 +288,27 @@ unsigned int airQuality = 0;
     #define MQ7_PIN A0   // ESP8266: shared with MQ-135 (not meaningful)
   #endif
   unsigned int carbonMonoxide = 0;
+#endif
+#if ENABLE_SOIL
+  // Three generic analog soil-moisture channels, one per probe, so different
+  // sensor models can run side by side and be compared (plant station).
+  // All on ADC1 (WiFi keeps ADC2 busy). Published model label comes from
+  // cfg.soil_*_model (runtime-editable); these macros are first-boot defaults.
+  #ifdef ESP32
+    #define SOIL_A_PIN 32  // GPIO32 (ADC1_CH4)
+    #define SOIL_B_PIN 33  // GPIO33 (ADC1_CH5)
+    #define SOIL_C_PIN 34  // GPIO34 (ADC1_CH6)
+    // Probe A's divider is powered from a GPIO, not the 3V3 rail: its DC
+    // injection into shared soil biases neighbouring probes (all-probes-in-
+    // one-pot comparison station) and electrolyses the prongs 24/7. The pin
+    // is driven HIGH only for A's own measurement window.
+    #define SOIL_A_EXCITE_PIN 25  // GPIO25, digital out (ADC2 not needed)
+  #else
+    #define SOIL_A_PIN A0  // ESP8266: single ADC pin shared (not meaningful)
+    #define SOIL_B_PIN A0
+    #define SOIL_C_PIN A0
+  #endif
+  unsigned int soilA = 0, soilB = 0, soilC = 0;  // raw ADC 0-4095
 #endif
 #if ENABLE_SCD41
   SensirionI2cScd4x scd41;
@@ -365,6 +396,9 @@ static void rainUpdateConnectedLatch(unsigned avg, unsigned spread) {
 void mqReadData();
 #if ENABLE_MQ7
 void mq7ReadData();
+#endif
+#if ENABLE_SOIL
+void soilData();
 #endif
 #if ENABLE_SCD41
 void scd41ReadData();
@@ -658,7 +692,7 @@ void setup() {
   #endif
   
   // Initialize I2C bus for any I2C sensors or OLED
-  #if ENABLE_BME280 || ENABLE_BH1750 || ENABLE_SPS30 || ENABLE_SCD41 || ENABLE_SGP41 || ENABLE_BME680 || ENABLE_OLED
+  #if ENABLE_BME280 || ENABLE_BH1750 || ENABLE_SPS30 || ENABLE_SCD41 || ENABLE_SGP41 || ENABLE_BME680 || ENABLE_OLED || ENABLE_SOIL
     #ifdef ESP32
       Wire.begin(21, 22);  // Explicit SDA/SCL pins on ESP32
     #else
@@ -777,6 +811,35 @@ void setup() {
   #else
     Serial.println("Rain sensor disabled (compile-time)");
   #endif
+
+  // Initialize soil moisture channels (compiled in; per-channel runtime toggles)
+  #if ENABLE_SOIL
+    if (cfg.en_soil_a) {
+      pinMode(SOIL_A_PIN, INPUT);
+      pinMode(SOIL_A_EXCITE_PIN, OUTPUT);
+      digitalWrite(SOIL_A_EXCITE_PIN, LOW);  // divider unpowered unless measuring
+      Serial.println("Soil A enabled on GPIO32 (excitation switched on GPIO25)");
+    } else Serial.println("Soil A disabled (runtime)");
+    if (cfg.en_soil_b) { pinMode(SOIL_B_PIN, INPUT); Serial.println("Soil B enabled on GPIO33"); }
+    else Serial.println("Soil B disabled (runtime)");
+    if (cfg.en_soil_c) { pinMode(SOIL_C_PIN, INPUT); Serial.println("Soil C enabled on GPIO34"); }
+    else Serial.println("Soil C disabled (runtime)");
+    // Identification aid: a 4-wire probe might be an I2C device (Grove/Seeed
+    // capacitive ~0x21, Chirp! ~0x20-0x2F) rather than VCC/GND/AO/DO analog.
+    // Anything on the bus announces itself here, once per boot.
+    Serial.println("[i2c] soil-identification scan:");
+    int i2cFound = 0;
+    for (uint8_t addr = 1; addr < 127; addr++) {
+      Wire.beginTransmission(addr);
+      if (Wire.endTransmission() == 0) {
+        Serial.printf("[i2c] device at 0x%02X\n", addr);
+        i2cFound++;
+      }
+    }
+    if (i2cFound == 0) Serial.println("[i2c] no devices found (all probes are analog)");
+  #else
+    Serial.println("Soil sensors disabled (compile-time)");
+  #endif
   
   // Initialize OLED display (if enabled)
   #if ENABLE_OLED
@@ -886,6 +949,9 @@ void loop() {
     #endif
     #if ENABLE_MQ7
       if (cfg.en_mq7) mq7ReadData();
+    #endif
+    #if ENABLE_SOIL
+      soilData();
     #endif
     #if ENABLE_SCD41
       if (cfg.en_scd41) scd41ReadData();
@@ -1176,6 +1242,57 @@ void mq7ReadData() {
   Serial.print("CO (MQ-7): "); Serial.println(carbonMonoxide);
 }
 #endif
+#if ENABLE_SOIL
+// 5-sample average per channel (same shape as rainData). Prints avg + spread:
+// a floating/unconnected pin shows large spread and rail-to-rail averages,
+// which is how we tell an unwired channel from a quiet reading while the
+// unknown sensors get identified.
+static unsigned int soilReadChannel(uint8_t pin, unsigned int* spread) {
+  unsigned int vals[5];
+  for (int i = 0; i < 5; i++) {
+    vals[i] = analogRead(pin);
+    delayMicroseconds(800);
+  }
+  unsigned int vmin = vals[0], vmax = vals[0], sum = 0;
+  for (int i = 0; i < 5; i++) {
+    if (vals[i] < vmin) vmin = vals[i];
+    if (vals[i] > vmax) vmax = vals[i];
+    sum += vals[i];
+  }
+  *spread = vmax - vmin;
+  return sum / 5;
+}
+
+void soilData() {
+  WxConfig& cfg = config_store::current();
+  // B and C are read first, while probe A's excitation is OFF, so A's DC
+  // injection through the shared soil cannot bias their readings.
+  struct { const char* name; uint8_t pin; bool en; unsigned int* val; } chans[2] = {
+    { "B", SOIL_B_PIN, cfg.en_soil_b, &soilB },
+    { "C", SOIL_C_PIN, cfg.en_soil_c, &soilC },
+  };
+  for (auto& ch : chans) {
+    if (!ch.en) continue;
+    unsigned int spread = 0;
+    *ch.val = soilReadChannel(ch.pin, &spread);
+    Serial.print("Soil "); Serial.print(ch.name);
+    Serial.print(": avg="); Serial.print(*ch.val);
+    Serial.print(" spread="); Serial.println(spread);
+  }
+  if (!cfg.en_soil_a) return;
+  // Energise A's divider only for its own 5-sample window (~5 ms), then
+  // de-energise. Also slashes probe-A electrolysis/corrosion duty cycle.
+  digitalWrite(SOIL_A_EXCITE_PIN, HIGH);
+  delay(2);  // divider settle
+  unsigned int spread = 0;
+  soilA = soilReadChannel(SOIL_A_PIN, &spread);
+  digitalWrite(SOIL_A_EXCITE_PIN, LOW);
+  // A reads through a 10k divider: higher = wetter (opposite of B/C modules).
+  Serial.print("Soil A: avg="); Serial.print(soilA);
+  Serial.print(" spread="); Serial.print(spread);
+  Serial.println(" (excited ~5ms)");
+}
+#endif
 
 #if ENABLE_SCD41
 void scd41ReadData() {
@@ -1460,6 +1577,11 @@ String createAndSignNostrEvent(float temp, float humidity, unsigned int pm1_val,
   #if ENABLE_MQ7
     if (cfg.en_mq7) appendReadingTag(readingTags, TAG_CARBON_MONOXIDE, MODEL_MQ7, carbonMonoxide);
   #endif
+  #if ENABLE_SOIL
+    if (cfg.en_soil_a) appendReadingTag(readingTags, TAG_SOIL_MOISTURE, cfg.soil_a_model.c_str(), soilA);
+    if (cfg.en_soil_b) appendReadingTag(readingTags, TAG_SOIL_MOISTURE, cfg.soil_b_model.c_str(), soilB);
+    if (cfg.en_soil_c) appendReadingTag(readingTags, TAG_SOIL_MOISTURE, cfg.soil_c_model.c_str(), soilC);
+  #endif
   #if ENABLE_SCD41
     if (cfg.en_scd41 && scd41Valid()) appendReadingTag(readingTags, TAG_CO2, MODEL_SCD41, (unsigned int)co2);
   #endif
@@ -1566,6 +1688,11 @@ String createMetadataEvent() {
   #endif
   #if ENABLE_MQ7
     if (cfg.en_mq7) appendSensorAndStatus(metadataTags, TAG_CARBON_MONOXIDE, MODEL_MQ7, true);
+  #endif
+  #if ENABLE_SOIL
+    if (cfg.en_soil_a) appendSensorAndStatus(metadataTags, TAG_SOIL_MOISTURE, cfg.soil_a_model.c_str(), true);
+    if (cfg.en_soil_b) appendSensorAndStatus(metadataTags, TAG_SOIL_MOISTURE, cfg.soil_b_model.c_str(), true);
+    if (cfg.en_soil_c) appendSensorAndStatus(metadataTags, TAG_SOIL_MOISTURE, cfg.soil_c_model.c_str(), true);
   #endif
   #if ENABLE_SCD41
     if (cfg.en_scd41) appendSensorAndStatus(metadataTags, TAG_CO2, MODEL_SCD41, scd41Valid());
@@ -1703,6 +1830,14 @@ static WxConfig buildFactoryDefaults() {
   #endif
   #if ENABLE_MQ7
     d.en_mq7 = (bool)(ENABLE_MQ7);
+  #endif
+  #if ENABLE_SOIL
+    d.en_soil_a = true;
+    d.en_soil_b = true;
+    d.en_soil_c = true;
+    d.soil_a_model = SOIL_A_MODEL;
+    d.soil_b_model = SOIL_B_MODEL;
+    d.soil_c_model = SOIL_C_MODEL;
   #endif
   return d;
 }
@@ -1864,6 +1999,11 @@ static void publishDashboardStatus() {
   #endif
   #if ENABLE_MQ7
     if (cfg.en_mq7) s.mq7_raw = carbonMonoxide;
+  #endif
+  #if ENABLE_SOIL
+    if (cfg.en_soil_a) s.soil_a_raw = soilA;
+    if (cfg.en_soil_b) s.soil_b_raw = soilB;
+    if (cfg.en_soil_c) s.soil_c_raw = soilC;
   #endif
 
   web_dashboard::updateStatus(s);

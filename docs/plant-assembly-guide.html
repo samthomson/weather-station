@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Plant Station — Build</title>
+<style>
+  :root{
+    --ink:#2a2521;--bg:#fbf7f0;--surface:#ffffff;--surface-hi:#f4ede0;
+    --border:#e2dac8;--border-hi:#c8bca5;
+    --text:#2a2521;--text-muted:#766c5f;--text-dim:#9a8f80;
+    --orange:#d97e2e;--orange-hi:#c66c1f;
+    --purple:#7c5fb8;--purple-hi:#6a4ca8;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html,body { background: var(--bg); }
+  body { font-family: -apple-system, 'Inter', 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); line-height: 1.5; }
+  .page { max-width: 980px; margin: 0 auto; padding: 0 20px 24px; }
+  .brand-bar { height: 4px; background: linear-gradient(90deg, var(--orange) 0%, var(--orange) 50%, var(--purple) 100%); margin: 0 -20px 18px; }
+  h1 { text-align: center; font-size: 1.4rem; margin-bottom: 4px; color: var(--orange); font-weight: 700; letter-spacing: -.01em; }
+  h1 .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--purple); margin: 0 8px 2px 0; vertical-align: middle; }
+  .sub { text-align: center; color: var(--text-muted); font-size: 0.85rem; margin-bottom: 24px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 22px; margin-bottom: 18px; box-shadow: 0 1px 3px rgba(42,37,33,.04); }
+  .card h2 { font-size: 0.85rem; margin-bottom: 14px; color: var(--purple); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+  .lede { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.85rem; color: var(--text); }
+  th { background: var(--surface-hi); color: var(--text); padding: 8px 10px; text-align: left; font-weight: 700; border-bottom: 1px solid var(--border); }
+  td { padding: 6px 10px; border-bottom: 1px solid var(--border); }
+  tr:last-child td { border-bottom: none; }
+  .pin { font-family: 'SF Mono', ui-monospace, monospace; font-weight: 800; color: var(--orange-hi); }
+  ::selection { background: var(--orange); color: #fff; }
+  table.matrix td, table.matrix th { vertical-align: middle; padding: 10px 8px; }
+  table.matrix thead th {
+    border-bottom: none;
+    font-size: 0.74rem;
+    letter-spacing: 0.02em;
+  }
+  table.matrix thead th.m-corner {
+    background: linear-gradient(180deg, #334155 0%, #1e293b 100%);
+    color: #f1f5f9;
+    text-align: left;
+    min-width: 3.2rem;
+    font-weight: 800;
+  }
+  table.matrix thead th.module {
+    border-left: 1px solid rgba(255,255,255,.2);
+    text-align: center;
+    vertical-align: bottom;
+    font-weight: 800;
+    line-height: 1.35;
+    padding: 14px 8px;
+  }
+  table.matrix thead th.module .mod-sub {
+    display: block;
+    margin-top: 6px;
+    font-weight: 600;
+    font-size: 0.68rem;
+    opacity: .92;
+  }
+  table.matrix thead th.mod-esp   { background: linear-gradient(180deg, #1d4ed8 0%, #1e40af 100%); color: #eff6ff; }
+  table.matrix thead th.mod-soil  { background: linear-gradient(180deg, #059669 0%, #047857 100%); color: #ecfdf5; }
+
+  table.matrix tbody th {
+    background: var(--surface-hi) !important;
+    color: var(--text) !important;
+    font-weight: 800;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+    width: 3.2rem;
+  }
+  table.matrix tbody td.meta {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    font-weight: 600;
+    color: var(--text);
+    text-align: left;
+  }
+  table.matrix tbody td.mod-esp  { background: #eff6ff; border-bottom: 1px solid #bfdbfe; color: #1e3a8a; text-align: left;   font-weight: 600; }
+  table.matrix tbody td.mod-soil { background: #ecfdf5; border-bottom: 1px solid #a7f3d0; color: #064e3b; text-align: center; font-weight: 700; }
+  table.matrix tbody td.na {
+    color: var(--text-dim);
+    font-style: italic;
+    font-weight: 500;
+  }
+
+  .wire-chip {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    border: 1px solid rgba(0,0,0,.12);
+    box-shadow: 0 1px 2px rgba(0,0,0,.06);
+  }
+  .wire-chip.black  { background: #0f172a; color: #f8fafc; border-color: #0f172a; }
+  .wire-chip.orange { background: #ea580c; color: #fff7ed; border-color: #c2410c; }
+  .wire-chip.blue   { background: #2563eb; color: #eff6ff; border-color: #1d4ed8; }
+  .wire-chip.yellow { background: #facc15; color: #1c1917; border-color: #ca8a04; }
+  .wire-chip.green  { background: #16a34a; color: #f0fdf4; border-color: #15803d; }
+  .wire-chip.red    { background: #dc2626; color: #fef2f2; border-color: #b91c1c; }
+  .wire-chip.wire-inline {
+    padding: 2px 7px;
+    font-size: 0.62rem;
+    margin: 2px 4px 2px 0;
+    vertical-align: middle;
+  }
+  .wire-list { padding: 4px 0 8px; }
+  .cables td.wire-col { padding: 8px 10px; vertical-align: middle; }
+  .cables td.qty-col { width: 3rem; text-align: center; font-weight: 700; color: var(--text-muted); }
+  .shop-group td {
+    background: var(--surface-hi);
+    font-size: 0.78rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--purple);
+    padding: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .shop-subgroup td {
+    background: var(--surface);
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    padding: 8px 10px 8px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  table.matrix tbody td.conn { white-space: nowrap; }
+
+  .matrix-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    box-shadow: 0 4px 24px rgba(42, 37, 33, .06);
+  }
+  table.matrix { border-radius: 12px; overflow: hidden; font-size: 0.78rem; table-layout: fixed; }
+  table.matrix tbody tr:last-child th,
+  table.matrix tbody tr:last-child td { border-bottom: none; }
+
+  .station-head {
+    text-align: center;
+    margin: 34px 0 18px;
+    padding-top: 22px;
+    border-top: 2px solid var(--border);
+  }
+  .station-head h2 { font-size: 1.05rem; color: var(--ink); font-weight: 800; letter-spacing: -.01em; }
+  .station-head p { font-size: 0.82rem; color: var(--text-muted); margin-top: 2px; }
+  .station-head .env { font-family: 'SF Mono', ui-monospace, monospace; font-weight: 800; color: var(--purple); }
+</style>
+</head>
+<body>
+<div class="page">
+<div class="brand-bar"></div>
+
+<h1><span class="dot"></span>Plant Station <span style="color:var(--text-dim);font-weight:400">— Build</span></h1>
+<p class="sub">30-pin ESP32 · breadboard first, stripboard later · three soil probes side by side · probes powered from <b>3V3 only</b></p>
+
+<!-- ============================================================ -->
+<!-- STATION 10 · PLANT                                            -->
+<!-- ============================================================ -->
+<div class="station-head">
+<h2>Plant / soil station</h2>
+<p><span class="env">plant10</span> · HW-080 + capacitive v1.2 + metal resistive probe (1.3&nbsp;m cable) · USB power (all three probes draw &lt;&nbsp;50&nbsp;mA)</p>
+</div>
+<div class="card">
+<h2>Breadboard first build</h2>
+<p class="lede">On a breadboard each <b>numbered column is one node</b>: a26–e26 are connected, a26 and a27 are not — so each signal gets <b>its own column</b>, and two wires of one net go into <b>different letters of the same column</b>. Power (3V3/GND) rides the horizontal top rails. Nothing mounts on the board: the ESP32 and probes sit beside it and reach in with jumpers.</p>
+<div style="margin:6px 0 14px">
+<svg viewBox="0 0 980 560" style="width:100%;height:auto;display:block" font-family="ui-monospace,Menlo,monospace" xmlns="http://www.w3.org/2000/svg">
+  <!-- breadboard body -->
+  <rect x="100" y="60" width="780" height="312" rx="10" fill="#f8f5ee" stroke="#c8bca5" stroke-width="1.5"/>
+  <rect x="100" y="210" width="780" height="22" fill="#efe9da"/>
+  <!-- top rails -->
+  <line x1="106" y1="76" x2="874" y2="76" stroke="#dc2626" stroke-width="2"/>
+  <line x1="106" y1="118" x2="874" y2="118" stroke="#2563eb" stroke-width="2"/>
+  <line x1="106" y1="88" x2="874" y2="88" stroke="#d6cfbf" stroke-width="4.2" stroke-linecap="round" stroke-dasharray="0.1 12.3"/>
+  <line x1="106" y1="106" x2="874" y2="106" stroke="#d6cfbf" stroke-width="4.2" stroke-linecap="round" stroke-dasharray="0.1 12.3"/>
+  <g font-size="9" font-weight="700">
+    <text x="92" y="92" fill="#dc2626">+</text><text x="92" y="110" fill="#2563eb">−</text>
+    <text x="888" y="92" fill="#dc2626">+</text><text x="888" y="110" fill="#2563eb">−</text>
+  </g>
+  <!-- top bank rows a..e -->
+  <g stroke="#d6cfbf" stroke-width="4.2" stroke-linecap="round" stroke-dasharray="0.1 12.3">
+    <line x1="106" y1="132" x2="874" y2="132"/><line x1="106" y1="150" x2="874" y2="150"/>
+    <line x1="106" y1="168" x2="874" y2="168"/><line x1="106" y1="186" x2="874" y2="186"/>
+    <line x1="106" y1="204" x2="874" y2="204"/>
+  </g>
+  <!-- signal columns 26 / 29 / 32 -->
+  <g>
+    <rect x="383" y="127" width="12" height="84" rx="5" fill="#ece5f6"/>
+    <rect x="420" y="127" width="12" height="84" rx="5" fill="#ece5f6"/>
+    <rect x="457" y="127" width="12" height="84" rx="5" fill="#ece5f6"/>
+    <rect x="494" y="127" width="12" height="84" rx="5" fill="#ece5f6"/>
+    <g fill="#7c5fb8">
+      <circle cx="389" cy="132" r="2.2"/><circle cx="389" cy="150" r="2.2"/><circle cx="389" cy="168" r="2.2"/><circle cx="389" cy="186" r="2.2"/><circle cx="389" cy="204" r="2.2"/>
+      <circle cx="426" cy="132" r="2.2"/><circle cx="426" cy="150" r="2.2"/><circle cx="426" cy="168" r="2.2"/><circle cx="426" cy="186" r="2.2"/><circle cx="426" cy="204" r="2.2"/>
+      <circle cx="463" cy="132" r="2.2"/><circle cx="463" cy="150" r="2.2"/><circle cx="463" cy="168" r="2.2"/><circle cx="463" cy="186" r="2.2"/><circle cx="463" cy="204" r="2.2"/>
+      <circle cx="500" cy="132" r="2.2"/><circle cx="500" cy="150" r="2.2"/><circle cx="500" cy="168" r="2.2"/><circle cx="500" cy="186" r="2.2"/><circle cx="500" cy="204" r="2.2"/>
+    </g>
+  </g>
+  <!-- column numbers in channel (1..60, bold = signal columns) -->
+  <g font-size="6.5" fill="#b8ad99" text-anchor="middle">
+    <text x="106" y="226">1</text><text x="155" y="226">5</text><text x="217" y="226">10</text>
+    <text x="279" y="226">15</text><text x="340" y="226">20</text><text x="402" y="226">25</text>
+    <text x="526" y="226">35</text><text x="587" y="226">40</text>
+    <text x="649" y="226">45</text><text x="711" y="226">50</text><text x="773" y="226">55</text>
+    <text x="834" y="226">60</text>
+  </g>
+  <g font-size="7.5" fill="#7c5fb8" font-weight="700" text-anchor="middle">
+    <text x="389" y="226">23</text><text x="426" y="226">26</text><text x="463" y="226">29</text><text x="500" y="226">32</text>
+  </g>
+  <!-- bottom bank + rails (unused, faded) -->
+  <g opacity="0.35">
+    <line x1="106" y1="238" x2="874" y2="238" stroke="#d6cfbf" stroke-width="4.2" stroke-linecap="round" stroke-dasharray="0.1 12.3"/>
+    <line x1="106" y1="256" x2="874" y2="256" stroke="#d6cfbf" stroke-width="4.2" stroke-linecap="round" stroke-dasharray="0.1 12.3"/>
+    <line x1="106" y1="274" x2="874" y2="274" stroke="#d6cfbf" stroke-width="4.2" stroke-linecap="round" stroke-dasharray="0.1 12.3"/>
+    <line x1="106" y1="292" x2="874" y2="292" stroke="#d6cfbf" stroke-width="4.2" stroke-linecap="round" stroke-dasharray="0.1 12.3"/>
+    <line x1="106" y1="310" x2="874" y2="310" stroke="#d6cfbf" stroke-width="4.2" stroke-linecap="round" stroke-dasharray="0.1 12.3"/>
+    <line x1="106" y1="334" x2="874" y2="334" stroke="#d6cfbf" stroke-width="4.2" stroke-linecap="round" stroke-dasharray="0.1 12.3"/>
+    <line x1="106" y1="352" x2="874" y2="352" stroke="#d6cfbf" stroke-width="4.2" stroke-linecap="round" stroke-dasharray="0.1 12.3"/>
+  </g>
+  <!-- row letters -->
+  <g font-size="8" fill="#9a8f80">
+    <text x="90" y="135">a</text><text x="90" y="153">b</text><text x="90" y="171">c</text>
+    <text x="90" y="189">d</text><text x="90" y="207">e</text>
+    <text x="90" y="241">f</text><text x="90" y="259">g</text><text x="90" y="277">h</text>
+    <text x="90" y="295">i</text><text x="90" y="313">j</text>
+    <text x="886" y="135">a</text><text x="886" y="153">b</text><text x="886" y="171">c</text>
+    <text x="886" y="189">d</text><text x="886" y="207">e</text>
+    <text x="886" y="241">f</text><text x="886" y="259">g</text><text x="886" y="277">h</text>
+    <text x="886" y="295">i</text><text x="886" y="313">j</text>
+  </g>
+  <g font-size="9.5" fill="#7c5fb8" font-weight="700" text-anchor="middle">
+    <text x="350" y="386">col 23 = D25 → probe A excitation (switched)</text>
+    <text x="520" y="398">col 26 = Soil A node · D32 &nbsp;·&nbsp; col 29 = Soil B · D33 &nbsp;·&nbsp; col 32 = Soil C · D34</text>
+  </g>
+  <!-- explicit node line through each signal column's 5 holes -->
+  <g stroke="#7c5fb8" stroke-width="1.5" opacity="0.65" stroke-linecap="round">
+    <line x1="389" y1="132" x2="389" y2="204"/>
+    <line x1="426" y1="132" x2="426" y2="204"/>
+    <line x1="463" y1="132" x2="463" y2="204"/>
+    <line x1="500" y1="132" x2="500" y2="204"/>
+  </g>
+  <!-- Soil A divider resistor: a26 up into − rail -->
+  <polyline points="426,130 422,126 430,123 422,120 430,117 426,112" fill="none" stroke="#2a2521" stroke-width="2"/>
+  <text x="446" y="126" font-size="9" fill="#2a2521" font-weight="700">10 kΩ</text>
+  <!-- ESP32 -->
+  <rect x="390" y="430" width="220" height="104" rx="8" fill="#334155" stroke="#1e293b"/>
+  <rect x="378" y="458" width="18" height="44" rx="3" fill="#cbd5e1" stroke="#94a3b8"/>
+  <text x="387" y="484" text-anchor="middle" font-size="7" fill="#334155">USB</text>
+  <text x="505" y="490" text-anchor="middle" font-size="10" fill="#94a3b8">ESP32</text>
+  <g font-size="9" text-anchor="middle" fill="#766c5f">
+    <text x="392" y="421">D25</text><text x="430" y="421">D32</text><text x="470" y="421">D33</text><text x="510" y="421">D34</text>
+    <text x="550" y="421">GND</text><text x="590" y="421">3V3</text>
+  </g>
+  <g fill="#f59e0b">
+    <rect x="388" y="427" width="8" height="8"/><rect x="426" y="427" width="8" height="8"/><rect x="466" y="427" width="8" height="8"/>
+    <rect x="506" y="427" width="8" height="8"/><rect x="546" y="427" width="8" height="8"/>
+    <rect x="586" y="427" width="8" height="8"/>
+  </g>
+  <circle cx="392" cy="431" r="5" fill="#ea580c"/><circle cx="430" cy="431" r="5" fill="#facc15"/><circle cx="470" cy="431" r="5" fill="#8b4513"/>
+  <circle cx="510" cy="431" r="5" fill="#16a34a"/><circle cx="550" cy="431" r="5" fill="#2563eb"/>
+  <circle cx="590" cy="431" r="5" fill="#ea580c"/>
+  <!-- sensor wires (drawn first, ESP verticals on top) -->
+  <path d="M 76 400 C 120 340, 320 220, 386 156" stroke="#ea580c" stroke-width="5" fill="none" stroke-linecap="round"/>
+  <path d="M 126 400 C 190 330, 340 220, 423 154" stroke="#facc15" stroke-width="5" fill="none" stroke-linecap="round"/>
+  <path d="M 283 429 C 262 320, 246 200, 244 110" stroke="#2563eb" stroke-width="5" fill="none" stroke-linecap="round"/>
+  <path d="M 310 429 C 308 300, 302 160, 300 92" stroke="#ea580c" stroke-width="5" fill="none" stroke-linecap="round"/>
+  <path d="M 335 429 C 370 340, 440 210, 461 156" stroke="#8b4513" stroke-width="5" fill="none" stroke-linecap="round"/>
+  <path d="M 914 398 C 890 300, 770 150, 748 92" stroke="#ea580c" stroke-width="5" fill="none" stroke-linecap="round"/>
+  <path d="M 880 398 C 872 300, 800 170, 786 112" stroke="#2563eb" stroke-width="5" fill="none" stroke-linecap="round"/>
+  <path d="M 812 398 C 700 330, 580 200, 505 158" stroke="#16a34a" stroke-width="5" fill="none" stroke-linecap="round"/>
+  <!-- ESP32 jumpers -->
+  <path d="M 392 425 C 391 340, 389 250, 389 190" stroke="#ea580c" stroke-width="5" fill="none" stroke-linecap="round"/>
+  <path d="M 430 425 C 428 340, 426 250, 426 190" stroke="#facc15" stroke-width="5" fill="none" stroke-linecap="round"/>
+  <path d="M 470 425 C 468 340, 464 250, 463 190" stroke="#8b4513" stroke-width="5" fill="none" stroke-linecap="round"/>
+  <path d="M 510 425 C 508 340, 502 250, 500 190" stroke="#16a34a" stroke-width="5" fill="none" stroke-linecap="round"/>
+  <path d="M 550 425 C 570 320, 600 180, 611 112" stroke="#2563eb" stroke-width="5" fill="none" stroke-linecap="round"/>
+  <path d="M 590 425 C 620 330, 635 160, 637 94" stroke="#ea580c" stroke-width="5" fill="none" stroke-linecap="round"/>
+  <!-- Soil A: bare 2-wire probe + screw terminal -->
+  <text x="100" y="545" text-anchor="middle" font-size="10" font-weight="700" fill="#2a2521">Soil A · HW-080 (bare 2-wire)</text>
+  <rect x="75" y="475" width="50" height="12" rx="3" fill="#1f2937"/>
+  <rect x="81" y="487" width="8" height="42" rx="2" fill="#cbd5e1" stroke="#94a3b8"/>
+  <rect x="109" y="487" width="8" height="42" rx="2" fill="#cbd5e1" stroke="#94a3b8"/>
+  <path d="M 90 475 C 87 462, 78 458, 82 434" stroke="#9a8f80" stroke-width="3" fill="none"/>
+  <path d="M 110 475 C 113 462, 122 460, 120 434" stroke="#9a8f80" stroke-width="3" fill="none"/>
+  <rect x="62" y="402" width="80" height="32" rx="5" fill="#1e3a8a" stroke="#172554"/>
+  <text x="102" y="396" text-anchor="middle" font-size="8" fill="#766c5f">screw terminal</text>
+  <circle cx="82" cy="418" r="6" fill="#64748b"/><line x1="78" y1="418" x2="86" y2="418" stroke="#f1f5f9" stroke-width="1.5"/>
+  <circle cx="122" cy="418" r="6" fill="#64748b"/><line x1="118" y1="418" x2="126" y2="418" stroke="#f1f5f9" stroke-width="1.5"/>
+  <!-- Soil B: capacitive v1.2 module -->
+  <text x="325" y="545" text-anchor="middle" font-size="10" font-weight="700" fill="#2a2521">Soil B · capacitive v1.2</text>
+  <g font-size="7" text-anchor="middle">
+    <text x="285" y="431" fill="#2563eb">GND</text><text x="310" y="431" fill="#ea580c">VCC</text><text x="335" y="431" fill="#8b4513" font-weight="700">AOUT</text>
+  </g>
+  <rect x="260" y="436" width="130" height="38" rx="4" fill="#047857"/>
+  <text x="325" y="459" text-anchor="middle" font-size="8" fill="#d1fae5">v1.2</text>
+  <g fill="#f59e0b"><rect x="282" y="433" width="6" height="6"/><rect x="307" y="433" width="6" height="6"/><rect x="332" y="433" width="6" height="6"/></g>
+  <rect x="282" y="474" width="7" height="34" rx="2" fill="#065f46"/><rect x="300" y="474" width="7" height="34" rx="2" fill="#065f46"/>
+  <rect x="318" y="474" width="7" height="34" rx="2" fill="#065f46"/><rect x="336" y="474" width="7" height="34" rx="2" fill="#065f46"/>
+  <!-- Soil C: metal fork + interface board with pins A0 D0 − + -->
+  <text x="845" y="545" text-anchor="middle" font-size="10" font-weight="700" fill="#2a2521">Soil C · SOIL-METAL-1M (pins: A0 D0 − +)</text>
+  <rect x="750" y="475" width="50" height="12" rx="3" fill="#1f2937"/>
+  <rect x="756" y="487" width="10" height="42" rx="2" fill="#cbd5e1" stroke="#94a3b8"/>
+  <rect x="784" y="487" width="10" height="42" rx="2" fill="#cbd5e1" stroke="#94a3b8"/>
+  <path d="M 770 475 C 790 462, 805 448, 818 434" stroke="#9a8f80" stroke-width="3" fill="none"/>
+  <rect x="795" y="402" width="140" height="32" rx="5" fill="#1e3a8a" stroke="#172554"/>
+  <text x="865" y="443" text-anchor="middle" font-size="8" fill="#766c5f">interface board (end of 1.3 m cable)</text>
+  <g fill="#f59e0b">
+    <rect x="809" y="399" width="6" height="6"/><rect x="843" y="399" width="6" height="6"/>
+    <rect x="877" y="399" width="6" height="6"/><rect x="911" y="399" width="6" height="6" fill="#94a3b8"/>
+  </g>
+  <g font-size="8" text-anchor="middle" font-weight="700">
+    <text x="812" y="395" fill="#16a34a">A0</text><text x="846" y="395" fill="#9a8f80">D0 ✕</text>
+    <text x="880" y="395" fill="#2563eb">−</text><text x="914" y="395" fill="#ea580c">+</text>
+  </g>
+  <!-- junction dots -->
+  <g fill="#2a2521">
+    <circle cx="389" cy="150" r="3.4"/><circle cx="389" cy="186" r="3.4"/><circle cx="300" cy="88" r="3.4"/>
+    <circle cx="637" cy="88" r="3.4"/><circle cx="746" cy="88" r="3.4"/>
+    <circle cx="244" cy="106" r="3.4"/><circle cx="611" cy="106" r="3.4"/><circle cx="784" cy="106" r="3.4"/>
+    <circle cx="426" cy="152" r="3.4"/><circle cx="426" cy="186" r="3.4"/><circle cx="426" cy="132" r="3"/>
+    <circle cx="463" cy="152" r="3.4"/><circle cx="463" cy="186" r="3.4"/>
+    <circle cx="500" cy="152" r="3.4"/><circle cx="500" cy="186" r="3.4"/>
+  </g>
+  <text x="490" y="56" text-anchor="middle" font-size="8" fill="#766c5f">power: female on the pin, male in the rail · signals: same column, different letter</text>
+</svg>
+</div>
+<table>
+<tr><td style="width:14%"><b>1 · ESP32 → board</b></td><td>Six F–M jumpers (female ends on the ESP32's pins): <span class="pin">3V3</span> → <b>+</b> rail, <span class="pin">GND</span> → <b>−</b> rail, <span class="pin">D32</span>/<span class="pin">D33</span>/<span class="pin">D34</span> → the <b>d</b> hole of columns <b>26 / 29 / 32</b>, and <span class="pin">D25</span> → the <b>d</b> hole of <b>column 23</b> (probe A's switched power — step 2).</td></tr>
+<tr><td><b>2 · Soil A divider</b></td><td>Bare 2-wire probe, no electronics — it's just a variable resistor, so it needs a fixed partner to make a voltage: clamp wire 1 in a screw terminal with an M–M → the <b>b</b> hole of <b>column 23</b> (D25, switched 3V3 — <i>not</i> the + rail: the firmware energises the probe only for its own ~5&nbsp;ms measurement, so its DC can't bias probes B and C sharing the pot, and it barely electrolyses); clamp wire 2 with an M–M → the <b>b</b> hole of <b>column 26</b>. Push the <b>10&nbsp;kΩ resistor</b> from the <b>a</b> hole of column 26 into the <b>−</b> rail. Column 26 = the measurement node. The resistor: a small tan cylinder, bands <b>brown·black·orange</b>(+gold); anything 4.7&nbsp;kΩ–47&nbsp;kΩ works.</td></tr>
+<tr><td><b>3 · Soil B</b></td><td>Three F–M jumpers: <b>VCC</b> → <b>+</b>, <b>GND</b> → <b>−</b>, <b>AOUT</b> → the <b>b</b> hole of <b>column 29</b>.</td></tr>
+<tr><td><b>4 · Soil C</b></td><td>Its interface board has four pins — <b>+</b> F–M → <b>+</b> rail (orange), <b>−</b> F–M → <b>−</b> rail (blue), <b>A0</b> F–M → the <b>b</b> hole of <b>column 32</b> (green), and <b>D0 — leave it unconnected</b>.</td></tr>
+<tr><td><b>5 · Check</b></td><td>USB in, serial monitor at 115200: expect <i>“[i2c] no devices found”</i> then <span class="pin">Soil B/C: avg=…</span> and <span class="pin">Soil A: avg=… (excited ~5ms)</span> every 2&nbsp;s. Any channel stuck at a constant 0 or 4095 = wrong column or unwired.</td></tr>
+</table>
+<p class="lede" style="margin-top:10px">Total: 12× F–M + 2× M–M + 1× 10&nbsp;kΩ + one 2-way screw terminal (Soil A's bare probe wires only). When the comparison data looks sane, rebuild it as the stripboard version below.</p>
+</div>
+
+<div class="card">
+<h2>Stripboard matrix</h2>
+<p class="lede">One row = one net. Every module lands on the row with its own stub. All probes run on <b>3V3 — never 5V</b> (the ESP32 ADC pins max out at 3.3&nbsp;V, and 5&nbsp;V degrades capacitive probes). <b>DO</b> pins stay unconnected everywhere. <b>Soil A is the bare 2-wire HW-080 probe</b> — no board of its own, so it rides a 10&nbsp;kΩ divider: 3V3 → probe → node (Soil-A row) → 10&nbsp;kΩ → GND row; its resistor leg lands in the GND row directly. GPIO&nbsp;34 is input-only, perfect for analog. The three probes should end up in the same pot of soil, a few cm apart, for a like-for-like comparison.</p>
+
+<div class="matrix-wrap">
+<table class="matrix">
+  <thead>
+    <tr>
+      <th class="m-corner" scope="col">Row</th>
+      <th class="m-corner" scope="col">Net</th>
+      <th scope="col" class="module mod-esp">ESP32 DevKit<span class="mod-sub">USB at top · 30-pin</span></th>
+      <th scope="col" class="module mod-soil">Soil A<span class="mod-sub">HW-080 · bare 2-wire probe + 10 kΩ divider</span></th>
+      <th scope="col" class="module mod-soil">Soil B<span class="mod-sub">capacitive v1.2 · GND VCC AOUT</span></th>
+      <th scope="col" class="module mod-soil">Soil C<span class="mod-sub">metal resistive · 1.3 m cable</span></th>
+    </tr>
+  </thead>
+  <tbody>
+<tr>
+  <th scope="row">1</th>
+  <td class="meta net"><span class="pin">GND</span></td>
+  <td class="mod-esp conn"><span class="wire-chip blue wire-inline">Blue</span><span class="pin">GND</span></td>
+  <td class="mod-soil conn">10 kΩ leg <span class="pin">(from Soil-A row)</span></td>
+  <td class="mod-soil conn"><span class="wire-chip blue wire-inline">Blue</span><b>GND</b></td>
+  <td class="mod-soil conn"><span class="wire-chip blue wire-inline">Blue</span><b>−</b> pin</td>
+</tr>
+<tr>
+  <th scope="row">2</th>
+  <td class="meta net"><span class="pin">3V3</span></td>
+  <td class="mod-esp conn"><span class="wire-chip orange wire-inline">Orange</span><span class="pin">3V3</span></td>
+  <td class="mod-soil conn"><span class="wire-chip orange wire-inline">Orange</span><b>wire 1</b> via <span class="pin">D25</span> (switched)</td>
+  <td class="mod-soil conn"><span class="wire-chip orange wire-inline">Orange</span><b>VCC</b></td>
+  <td class="mod-soil conn"><span class="wire-chip orange wire-inline">Orange</span><b>+</b> pin</td>
+</tr>
+<tr>
+  <th scope="row">3</th>
+  <td class="meta net">Soil A analog</td>
+  <td class="mod-esp conn"><span class="wire-chip yellow wire-inline">Yellow</span><span class="pin">D32</span></td>
+  <td class="mod-soil conn"><span class="wire-chip yellow wire-inline">Yellow</span><b>wire 2</b> = node</td>
+  <td class="mod-soil na">—</td>
+  <td class="mod-soil na">—</td>
+</tr>
+<tr>
+  <th scope="row">4</th>
+  <td class="meta net">Soil B analog</td>
+  <td class="mod-esp conn"><span class="wire-chip brown wire-inline">Brown</span><span class="pin">D33</span></td>
+  <td class="mod-soil na">—</td>
+  <td class="mod-soil conn"><span class="wire-chip brown wire-inline">Brown</span><b>AO</b></td>
+  <td class="mod-soil na">—</td>
+</tr>
+<tr>
+  <th scope="row">5</th>
+  <td class="meta net">Soil C analog</td>
+  <td class="mod-esp conn"><span class="wire-chip green wire-inline">Green</span><span class="pin">D34</span></td>
+  <td class="mod-soil na">—</td>
+  <td class="mod-soil na">—</td>
+  <td class="mod-soil conn"><span class="wire-chip green wire-inline">Green</span><b>A0</b> pin</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+
+<div class="card">
+<h2>Sensor notes</h2>
+<p class="lede">Identify-then-rename workflow: all three channels publish raw 0–4095 ADC as <span class="pin">soil_moisture</span> readings with editable model labels — once you trust a channel, rename it in the dashboard (Sensors → soil model fields). No reflash needed.</p>
+<table>
+<tr><td style="width:14%"><b>Soil A</b></td><td>HW-080 <b>bare 2-wire resistive fork</b> — no electronics board, two wires off the probe. The probe is just a variable resistor, and the ADC reads voltage — so a fixed partner resistor is needed to turn resistance into a voltage: the 10&nbsp;kΩ divider (3V3 → probe → <span class="pin">D32</span> node → 10&nbsp;kΩ → GND). A zero-parts alternative exists — the ESP32's internal ~45&nbsp;kΩ pull-up — but its value is loosely specified and varies chip-to-chip and with temperature, which would make A's data incomparable with B and C. Keep the 10&nbsp;kΩ. Wet soil = low probe resistance = node voltage <b>rises</b>, so this channel reads <b>high when wet</b> — the opposite direction of B and C. A dead-wrong channel reads a constant 0 or 4095.</td></tr>
+<tr><td><b>Soil B</b></td><td><b>Capacitive Soil Moisture Sensor v1.2</b> (Lazada generic, TLC555, “Corrosion Resistant v1.2” silkscreen). Header labels left-to-right: <b>GND, VCC, AOUT</b>. Rated 3.3–5.5&nbsp;V, &lt;&nbsp;5&nbsp;mA, analog out 0–3.0&nbsp;V — so this channel never reaches ADC full scale; expect dry ≈&nbsp;2300–3000&nbsp;raw and much lower when wet. The electronics end (top edge above the header) must stay out of the soil: the bare PCB edge wicks water — seal it with heat-shrink or wax.</td></tr>
+<tr><td><b>Soil C</b></td><td>Generic OEM module (Lazada AEI.th, no model number): metal two-prong fork on a 1.3&nbsp;m cable to a small interface board with four pins: <b>+ → 3V3</b>, <b>− → GND</b>, <b>A0 → D34</b> (analog out), <b>D0 unconnected</b> — D0 is the LM393 comparator's wet/dry threshold output (trimmer-set); A0 carries the full measurement, so D0 adds nothing. Firmware default label is <span class="pin">SOIL-METAL-1M</span>. <b>Gotcha (found the hard way):</b> the fork's 2-wire lead must be pushed <b>fully</b> into its socket on the interface board — a half-seated connector reads as bone-dry max (steady 4095) <i>even with the fork underwater</i>. If this channel ever pegs at 4095, reseat the fork connector before suspecting anything else.</td></tr>
+<tr><td><b>Corrosion</b></td><td>Resistive probes (A, C) electrolyse when powered constantly — expect drift and probe wear over weeks/months. That's exactly what this comparison station is measuring. The metal C should outlast the standard A.</td></tr>
+<tr><td><b>First boot</b></td><td>Serial prints an I²C identification scan (expect <i>“no devices found — all probes are analog”</i>) and then <span class="pin">Soil A/B/C: avg=… spread=…</span> every 2&nbsp;s. Watch the values dry in air, then dip each probe in water one at a time to map channels and wet/dry direction per model.</td></tr>
+</table>
+</div>
+
+<div class="card">
+<h2>Cables — plant station</h2>
+<p class="lede">Three F–M parts per connection, all pluggable and no M–M anywhere: a <b>15&nbsp;cm stub</b> (male end soldered into the stripboard row, female socket up), a <b>30&nbsp;cm riser</b> (its male end into the stub's socket, female socket up), and a <b>10&nbsp;cm sensor tail</b> (its male end into the riser's socket, its female onto the sensor's male pin). The ESP32 skips riser and tail — its stub's female goes straight onto the DevKit's pins. Sensor C's 1.3&nbsp;m pigtail already reaches the plant: one tail tier only, soldered to the pigtail.</p>
+<table class="cables">
+<tr class="shop-group"><td colspan="2">ESP32</td></tr>
+<tr class="shop-subgroup"><td colspan="2">15&nbsp;cm · F–M · perfboard stub (M soldered into the row, F straight onto the ESP32 pins)</td></tr>
+<tr><td colspan="2" class="wire-col"><div class="wire-list">
+  <span class="wire-chip blue wire-inline">Blue</span>
+  <span class="wire-chip orange wire-inline">Orange</span>
+  <span class="wire-chip yellow wire-inline">Yellow</span>
+  <span class="wire-chip brown wire-inline">Brown</span>
+  <span class="wire-chip green wire-inline">Green</span>
+</div></td></tr>
+
+<tr class="shop-group"><td colspan="2">Soil A · HW-080 bare probe</td></tr>
+<tr class="shop-subgroup"><td colspan="2">15&nbsp;cm · F–M · perfboard stub (M soldered into the row)</td></tr>
+<tr><td colspan="2" class="wire-col"><div class="wire-list">
+  <span class="wire-chip orange wire-inline">Orange</span>
+  <span class="wire-chip yellow wire-inline">Yellow</span>
+</div></td></tr>
+<tr class="shop-subgroup"><td colspan="2">30&nbsp;cm · F–M · riser (M into the stub's female)</td></tr>
+<tr><td colspan="2" class="wire-col"><div class="wire-list">
+  <span class="wire-chip orange wire-inline">Orange</span>
+  <span class="wire-chip yellow wire-inline">Yellow</span>
+</div></td></tr>
+<tr class="shop-subgroup"><td colspan="2">10&nbsp;cm · F–M · sensor tail (M end soldered/clamped to the probe's two wires)</td></tr>
+<tr><td colspan="2" class="wire-col"><div class="wire-list">
+  <span class="wire-chip orange wire-inline">Orange</span>
+  <span class="wire-chip yellow wire-inline">Yellow</span>
+</div></td></tr>
+<tr class="shop-subgroup"><td colspan="2">+ 1 × 10&nbsp;kΩ resistor — one leg in the Soil-A (yellow) row, other leg in the GND row; no wire</td></tr>
+
+<tr class="shop-group"><td colspan="2">Soil B · capacitive v1.2</td></tr>
+<tr class="shop-subgroup"><td colspan="2">15&nbsp;cm · F–M · perfboard stub (M soldered into the row)</td></tr>
+<tr><td colspan="2" class="wire-col"><div class="wire-list">
+  <span class="wire-chip blue wire-inline">Blue</span>
+  <span class="wire-chip orange wire-inline">Orange</span>
+  <span class="wire-chip brown wire-inline">Brown</span>
+</div></td></tr>
+<tr class="shop-subgroup"><td colspan="2">30&nbsp;cm · F–M · riser (M into the stub's female)</td></tr>
+<tr><td colspan="2" class="wire-col"><div class="wire-list">
+  <span class="wire-chip blue wire-inline">Blue</span>
+  <span class="wire-chip orange wire-inline">Orange</span>
+  <span class="wire-chip brown wire-inline">Brown</span>
+</div></td></tr>
+<tr class="shop-subgroup"><td colspan="2">10&nbsp;cm · F–M · sensor tail (F on the sensor pin)</td></tr>
+<tr><td colspan="2" class="wire-col"><div class="wire-list">
+  <span class="wire-chip blue wire-inline">Blue</span>
+  <span class="wire-chip orange wire-inline">Orange</span>
+  <span class="wire-chip brown wire-inline">Brown</span>
+</div></td></tr>
+
+<tr class="shop-group"><td colspan="2">Soil C · metal 1.3 m pigtail</td></tr>
+<tr class="shop-subgroup"><td colspan="2">15&nbsp;cm · F–M · perfboard stub (M soldered into the row)</td></tr>
+<tr><td colspan="2" class="wire-col"><div class="wire-list">
+  <span class="wire-chip blue wire-inline">Blue</span>
+  <span class="wire-chip orange wire-inline">Orange</span>
+  <span class="wire-chip green wire-inline">Green</span>
+</div></td></tr>
+<tr class="shop-subgroup"><td colspan="2">10&nbsp;cm · F–M · sensor tail (F on the sensor's − / + / A0 pins)</td></tr>
+<tr><td colspan="2" class="wire-col"><div class="wire-list">
+  <span class="wire-chip blue wire-inline">Blue</span>
+  <span class="wire-chip orange wire-inline">Orange</span>
+  <span class="wire-chip green wire-inline">Green</span>
+</div></td></tr>
+
+<tr class="shop-subgroup"><td colspan="2">Totals per colour (stub + riser + tail)</td></tr>
+<tr><th class="qty-col">Qty</th><th>Wire</th></tr>
+<tr><td class="qty-col">6</td><td class="wire-col"><span class="wire-chip blue wire-inline">Blue</span>&nbsp; 3 + 1 + 2</td></tr>
+<tr><td class="qty-col">9</td><td class="wire-col"><span class="wire-chip orange wire-inline">Orange</span>&nbsp; 4 + 2 + 3</td></tr>
+<tr><td class="qty-col">4</td><td class="wire-col"><span class="wire-chip yellow wire-inline">Yellow</span>&nbsp; 2 + 1 + 1</td></tr>
+<tr><td class="qty-col">4</td><td class="wire-col"><span class="wire-chip brown wire-inline">Brown</span>&nbsp; 2 + 1 + 1</td></tr>
+<tr><td class="qty-col">3</td><td class="wire-col"><span class="wire-chip green wire-inline">Green</span>&nbsp; 2 + 0 + 1</td></tr>
+<tr><td colspan="2" style="font-weight:700;padding-top:10px"><b>26</b> wires for the plant station (13 stubs + 5 risers + 8 tails) + 1 × 10&nbsp;kΩ resistor</td></tr>
+</table>
+</div>
+
+</div>
+</body>
+</html>

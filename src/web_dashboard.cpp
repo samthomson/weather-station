@@ -191,6 +191,12 @@ button.savefail{background:var(--err);color:#fff}
 <div class="toggle"><input id="en_sgp41" type="checkbox"><label for="en_sgp41">SGP41 - VOC + NOx index</label></div>
 <div class="toggle"><input id="en_mq135" type="checkbox"><label for="en_mq135">MQ-135 - air quality (analog)</label></div>
 <div class="toggle"><input id="en_mq7" type="checkbox"><label for="en_mq7">MQ-7 - carbon monoxide (analog)</label></div>
+<div class="toggle"><input id="en_soil_a" type="checkbox"><label for="en_soil_a">Soil A - moisture (analog)</label></div>
+<label>Soil A model</label><input id="soil_a_model" placeholder="e.g. HW-080" autocomplete="off">
+<div class="toggle"><input id="en_soil_b" type="checkbox"><label for="en_soil_b">Soil B - moisture (analog)</label></div>
+<label>Soil B model</label><input id="soil_b_model" placeholder="e.g. Capacitive v1.2" autocomplete="off">
+<div class="toggle"><input id="en_soil_c" type="checkbox"><label for="en_soil_c">Soil C - moisture (analog)</label></div>
+<label>Soil C model</label><input id="soil_c_model" placeholder="e.g. UNKNOWN" autocomplete="off">
 <button onclick="saveSensors(this)">Save sensor setup</button>
 
 <h2>Advanced</h2>
@@ -271,6 +277,9 @@ async function refreshStatus(){
     setRow(tbl, 'gas',      s.has_gas      ? 'Gas resistance' : null, s.has_gas ? (s.gas_res_ohm + ' ohm') : null);
     setRow(tbl, 'mq135',    (typeof s.mq135_raw === 'number' && s.mq135_raw > 0) ? 'MQ-135 (raw)' : null, (typeof s.mq135_raw === 'number' && s.mq135_raw > 0) ? String(s.mq135_raw) : null);
     setRow(tbl, 'mq7',      (typeof s.mq7_raw === 'number' && s.mq7_raw > 0) ? 'MQ-7 (raw)' : null, (typeof s.mq7_raw === 'number' && s.mq7_raw > 0) ? String(s.mq7_raw) : null);
+    setRow(tbl, 'soila', (typeof s.soil_a_raw === 'number' && s.soil_a_raw > 0) ? ('Soil A (' + (_cfg.soil_a_model || '?') + ')') : null, (typeof s.soil_a_raw === 'number' && s.soil_a_raw > 0) ? String(s.soil_a_raw) : null);
+    setRow(tbl, 'soilb', (typeof s.soil_b_raw === 'number' && s.soil_b_raw > 0) ? ('Soil B (' + (_cfg.soil_b_model || '?') + ')') : null, (typeof s.soil_b_raw === 'number' && s.soil_b_raw > 0) ? String(s.soil_b_raw) : null);
+    setRow(tbl, 'soilc', (typeof s.soil_c_raw === 'number' && s.soil_c_raw > 0) ? ('Soil C (' + (_cfg.soil_c_model || '?') + ')') : null, (typeof s.soil_c_raw === 'number' && s.soil_c_raw > 0) ? String(s.soil_c_raw) : null);
     if (!tbl.children.length){
       tbl.innerHTML = '<tr data-k="none"><td colspan="2" class="muted">No sensor data yet.</td></tr>';
     }
@@ -307,6 +316,12 @@ async function loadConfig(reveal){
   $('en_mq135').checked  = !!c.en_mq135;
   $('en_mq7').checked    = !!c.en_mq7;
   $('pms_model').value   = c.pms_model || 'PMS5003';
+  $('en_soil_a').checked = !!c.en_soil_a;
+  $('en_soil_b').checked = !!c.en_soil_b;
+  $('en_soil_c').checked = !!c.en_soil_c;
+  $('soil_a_model').value = c.soil_a_model || '';
+  $('soil_b_model').value = c.soil_b_model || '';
+  $('soil_c_model').value = c.soil_c_model || '';
   $('post_interval_s').value = Math.round((c.post_interval_ms || 60000) / 1000);
 }
 
@@ -447,6 +462,12 @@ function saveSensors(btn){
     en_mq135:  $('en_mq135').checked,
     en_mq7:    $('en_mq7').checked,
     pms_model: $('pms_model').value,
+    en_soil_a: $('en_soil_a').checked,
+    en_soil_b: $('en_soil_b').checked,
+    en_soil_c: $('en_soil_c').checked,
+    soil_a_model: $('soil_a_model').value.trim(),
+    soil_b_model: $('soil_b_model').value.trim(),
+    soil_c_model: $('soil_c_model').value.trim(),
   });
 }
 function saveAdvanced(btn){
@@ -522,6 +543,9 @@ setInterval(refreshStatus, 5000);
     doc["pm10"]       = status.pm10;
     doc["mq135_raw"]  = status.mq135_raw;
     doc["mq7_raw"]    = status.mq7_raw;
+    doc["soil_a_raw"] = status.soil_a_raw;
+    doc["soil_b_raw"] = status.soil_b_raw;
+    doc["soil_c_raw"] = status.soil_c_raw;
     doc["pubkey_hex"] = status.pubkey_hex;
     doc["device_id"]  = status.device_id;
 
@@ -554,6 +578,12 @@ setInterval(refreshStatus, 5000);
     doc["en_mq135"]             = c.en_mq135;
     doc["en_mq7"]               = c.en_mq7;
     doc["pms_model"]            = c.pms_model;
+    doc["en_soil_a"]             = c.en_soil_a;
+    doc["en_soil_b"]             = c.en_soil_b;
+    doc["en_soil_c"]             = c.en_soil_c;
+    doc["soil_a_model"]          = c.soil_a_model;
+    doc["soil_b_model"]          = c.soil_b_model;
+    doc["soil_c_model"]          = c.soil_c_model;
     doc["pubkey_hex"]           = status.pubkey_hex;
     String out; serializeJson(doc, out);
     sendJson(200, out);
@@ -622,11 +652,21 @@ setInterval(refreshStatus, 5000);
     setBool("en_sgp41",  c.en_sgp41);
     setBool("en_mq135",  c.en_mq135);
     setBool("en_mq7",    c.en_mq7);
+    setBool("en_soil_a", c.en_soil_a);
+    setBool("en_soil_b", c.en_soil_b);
+    setBool("en_soil_c", c.en_soil_c);
     {
       bool dummy = false;
       String prev = c.pms_model;
       setStr("pms_model", c.pms_model, dummy);
       if (c.pms_model != prev) sensorsChanged = true;
+    }
+    {
+      bool soilModelChanged = false;
+      setStr("soil_a_model", c.soil_a_model, soilModelChanged);
+      setStr("soil_b_model", c.soil_b_model, soilModelChanged);
+      setStr("soil_c_model", c.soil_c_model, soilModelChanged);
+      if (soilModelChanged) sensorsChanged = true;
     }
 
     config_store::save();

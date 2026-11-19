@@ -108,7 +108,13 @@ void begin(const WxConfig& defaults) {
   g_cfg.en_sgp41              = loadBool("en_sgp41",   defaults.en_sgp41);
   g_cfg.en_mq135              = loadBool("en_mq135",   defaults.en_mq135);
   g_cfg.en_mq7                = loadBool("en_mq7",     defaults.en_mq7);
+  g_cfg.en_soil_a             = loadBool("en_soila",   defaults.en_soil_a);
+  g_cfg.en_soil_b             = loadBool("en_soilb",   defaults.en_soil_b);
+  g_cfg.en_soil_c             = loadBool("en_soilc",   defaults.en_soil_c);
   g_cfg.pms_model             = loadStr("pms_model",   defaults.pms_model);
+  g_cfg.soil_a_model          = loadStr("soila_model", defaults.soil_a_model);
+  g_cfg.soil_b_model          = loadStr("soilb_model", defaults.soil_b_model);
+  g_cfg.soil_c_model          = loadStr("soilc_model", defaults.soil_c_model);
 
   // Guarantee a usable Nostr key after every boot.
   if (!isValidPrivKeyHex(g_cfg.nostr_privkey)) {
@@ -138,7 +144,13 @@ bool save() {
   prefs.putBool("en_sgp41",      g_cfg.en_sgp41);
   prefs.putBool("en_mq135",      g_cfg.en_mq135);
   prefs.putBool("en_mq7",        g_cfg.en_mq7);
+  prefs.putBool("en_soila",      g_cfg.en_soil_a);
+  prefs.putBool("en_soilb",      g_cfg.en_soil_b);
+  prefs.putBool("en_soilc",      g_cfg.en_soil_c);
   prefs.putString("pms_model",   g_cfg.pms_model);
+  prefs.putString("soila_model", g_cfg.soil_a_model);
+  prefs.putString("soilb_model", g_cfg.soil_b_model);
+  prefs.putString("soilc_model", g_cfg.soil_c_model);
   return true;
 }
 

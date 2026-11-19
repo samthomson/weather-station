@@ -35,7 +35,14 @@ struct WxConfig {
   bool en_sgp41  = false;
   bool en_mq135  = false;
   bool en_mq7    = false;
+  bool en_soil_a = false;
+  bool en_soil_b = false;
+  bool en_soil_c = false;
   String pms_model = "PMS5003";  // "PMS5003" or "PMS7003"
+  // Soil channel model labels (editable: identify sensor, then rename here)
+  String soil_a_model = "HW-080";
+  String soil_b_model = "UNKNOWN";
+  String soil_c_model = "UNKNOWN";
 };
 
 namespace config_store {
